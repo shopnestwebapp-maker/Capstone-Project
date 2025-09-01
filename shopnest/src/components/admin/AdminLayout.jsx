@@ -1,11 +1,13 @@
 import { Link, Outlet, useNavigate } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import Sidebar from './Sidebar';
+import { Bars3Icon } from '@heroicons/react/24/outline';
 
 export default function AdminLayout() {
     const { user, loading, logout } = useAuth();
     const navigate = useNavigate();
+    const [sidebarOpen, setSidebarOpen] = useState(false);
 
     useEffect(() => {
         if (!loading && user?.role !== 'admin') {
@@ -19,28 +21,36 @@ export default function AdminLayout() {
 
     return (
         <div className="min-h-screen bg-gray-100">
-            {/* Admin Navbar */}
-            <nav className="bg-white shadow-sm">
+            {/* Navbar */}
+            <nav className="bg-white shadow-sm md:ml-64">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex justify-between h-16">
-                        <div className="flex">
-                            <div className="flex-shrink-0 flex items-center">
-                                <span className="text-xl font-bold text-gray-800">Admin Panel</span>
-                            </div>
+                    <div className="flex justify-between h-16 items-center">
+                        {/* Mobile menu button */}
+                        <div className="flex items-center md:hidden">
+                            <button
+                                onClick={() => setSidebarOpen(true)}
+                                className="text-gray-500 hover:text-gray-700"
+                            >
+                                <Bars3Icon className="h-6 w-6" />
+                            </button>
                         </div>
-                        <div className="flex items-center">
+
+                        <div className="flex items-center space-x-4">
+                            <span className="text-xl font-bold text-gray-800 hidden md:block">
+                                Admin Panel
+                            </span>
                             {user && (
-                                <div className="ml-4 relative">
+                                <div className="relative">
                                     <button className="flex items-center text-sm rounded-full focus:outline-none">
-                                        <span className="sr-only">Open user menu</span>
                                         <span className="mr-2">{user.username}</span>
                                         <img
                                             className="h-8 w-8 rounded-full"
                                             src={`https://ui-avatars.com/api/?name=${user.username}&background=random`}
-                                            alt=""
+                                            alt="User Avatar"
                                         />
                                     </button>
-                                    <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5">
+                                    {/* Sign out (optional dropdown can be enhanced later) */}
+                                    <div className="absolute right-0 mt-2 w-48 bg-white shadow-lg ring-1 ring-black ring-opacity-5 rounded-md py-1">
                                         <button
                                             onClick={logout}
                                             className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
@@ -56,8 +66,9 @@ export default function AdminLayout() {
             </nav>
 
             <div className="flex">
-                <Sidebar />
+                <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
 
+                {/* Main content */}
                 <main className="flex-1 p-6">
                     <Outlet />
                 </main>
