@@ -11,6 +11,21 @@ export default function Categories() {
         name: '',
         description: ''
     });
+    const [searchQuery, setSearchQuery] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const productsPerPage = 6;
+    const filteredProducts = categories.filter(product => {
+            const matchesName = product.name.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesName;
+        })
+    const indexOfLastProduct = currentPage * productsPerPage;
+    const indexOfFirstProduct = indexOfLastProduct - productsPerPage;
+    const currentProducts = filteredProducts.slice(indexOfFirstProduct, indexOfLastProduct);
+    const totalPages = Math.ceil(filteredProducts.length / productsPerPage);
+    useEffect(() => {
+        // Reset to page 1 when filters or sort change
+        setCurrentPage(1);
+    }, [searchQuery,]);
 
     useEffect(() => {
         const fetchCategories = async () => {
@@ -18,7 +33,7 @@ export default function Categories() {
                 const res = await axios.get('/api/admin/categories');
                 setCategories(res.data);
             } catch (err) {
-                setError('Failed to fetch categories',err);
+                setError('Failed to fetch categories', err);
             } finally {
                 setLoading(false);
             }
@@ -38,7 +53,7 @@ export default function Categories() {
             setCategories([...categories, res.data]);
             setNewCategory({ name: '', description: '' });
         } catch (err) {
-            setError('Failed to add category',err);
+            setError('Failed to add category', err);
         }
     };
 
@@ -47,7 +62,7 @@ export default function Categories() {
             await axios.delete(`/api/admin/categories/${id}`);
             setCategories(categories.filter(cat => cat.id !== id));
         } catch (err) {
-            setError('Failed to delete category',err);
+            setError('Failed to delete category', err);
         }
     };
 
@@ -59,13 +74,13 @@ export default function Categories() {
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <h1 className="text-2xl font-bold text-gray-800">Categories</h1>
-                <Link
+                {/* <Link
                     to="/admin/categories/new"
                     className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                 >
                     <PlusIcon className="h-5 w-5 mr-2" />
                     Add Category
-                </Link>
+                </Link> */}
             </div>
 
             {error && (
@@ -113,7 +128,17 @@ export default function Categories() {
                     </button>
                 </form>
             </div>
+            <div className="flex flex-col md:flex-row md:items-center md:justify-end gap-4">
+                <input
+                    type="text"
+                    placeholder="Search categories..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full md:w-64 px-4 py-2 border border-gray-300 rounded-md"
+                />
 
+                
+            </div>
             {/* Categories Table */}
             <div className="bg-white shadow overflow-hidden sm:rounded-lg">
                 <table className="min-w-full divide-y divide-gray-200">
@@ -134,7 +159,7 @@ export default function Categories() {
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                        {categories.map((category) => (
+                        {currentProducts.map((category) => (
                             <tr key={category.id}>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                     {category.id}
@@ -165,6 +190,43 @@ export default function Categories() {
                         ))}
                     </tbody>
                 </table>
+                <div className="flex justify-center items-center space-x-2 px-6 py-4 flex-wrap">
+                    <button
+                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                        disabled={currentPage === 1}
+                        className={`px-3 py-1 rounded border text-sm ${currentPage === 1
+                            ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                            : 'bg-white text-gray-700 hover:bg-gray-100'
+                            }`}
+                    >
+                        Prev
+                    </button>
+
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                        <button
+                            key={page}
+                            onClick={() => setCurrentPage(page)}
+                            className={`px-3 py-1 rounded border text-sm ${currentPage === page
+                                ? 'bg-blue-600 text-white font-semibold'
+                                : 'bg-white text-gray-700 hover:bg-gray-100'
+                                }`}
+                        >
+                            {page}
+                        </button>
+                    ))}
+
+                    <button
+                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                        disabled={currentPage === totalPages || totalPages === 0}
+                        className={`px-3 py-1 rounded border text-sm ${currentPage === totalPages || totalPages === 0
+                            ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                            : 'bg-white text-gray-700 hover:bg-gray-100'
+                            }`}
+                    >
+                        Next
+                    </button>
+                </div>
+
             </div>
         </div>
     );

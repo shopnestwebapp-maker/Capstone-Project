@@ -17,10 +17,12 @@ export default function Products() {
         stock_quantity: ''
     });
 
-    // Search & filter states
+    // Search, filter, sort, pagination
     const [searchQuery, setSearchQuery] = useState('');
     const [searchCategory, setSearchCategory] = useState('');
-    const [sortOrder, setSortOrder] = useState(''); // 'asc', 'desc', or ''
+    const [sortOrder, setSortOrder] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const productsPerPage = 6;
 
     useEffect(() => {
         const fetchData = async () => {
@@ -32,13 +34,18 @@ export default function Products() {
                 setProducts(productsRes.data);
                 setCategories(categoriesRes.data);
             } catch (err) {
-                setError('Failed to fetch data',err);
+                setError('Failed to fetch data', err);
             } finally {
                 setLoading(false);
             }
         };
         fetchData();
     }, []);
+
+    useEffect(() => {
+        // Reset to page 1 when filters or sort change
+        setCurrentPage(1);
+    }, [searchQuery, searchCategory, sortOrder]);
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -59,7 +66,7 @@ export default function Products() {
                 stock_quantity: ''
             });
         } catch (err) {
-            setError('Failed to add product',err);
+            setError('Failed to add product', err);
         }
     };
 
@@ -68,10 +75,11 @@ export default function Products() {
             await axios.delete(`/api/admin/products/${id}`);
             setProducts(products.filter(prod => prod.id !== id));
         } catch (err) {
-            setError('Failed to delete product',err);
+            setError('Failed to delete product', err);
         }
     };
 
+    // Filter, sort, and paginate products
     const filteredProducts = products
         .filter(product => {
             const matchesName = product.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -85,6 +93,11 @@ export default function Products() {
             if (sortOrder === 'desc') return b.price - a.price;
             return 0;
         });
+
+    const indexOfLastProduct = currentPage * productsPerPage;
+    const indexOfFirstProduct = indexOfLastProduct - productsPerPage;
+    const currentProducts = filteredProducts.slice(indexOfFirstProduct, indexOfLastProduct);
+    const totalPages = Math.ceil(filteredProducts.length / productsPerPage);
 
     if (loading) {
         return <div className="flex justify-center items-center h-64">Loading products...</div>;
@@ -238,7 +251,7 @@ export default function Products() {
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                        {filteredProducts.map(product => (
+                        {currentProducts.map(product => (
                             <tr key={product.id}>
                                 <td className="px-6 py-4 text-sm text-gray-500">{product.id}</td>
                                 <td className="px-6 py-4 text-sm font-medium text-gray-900">{product.name}</td>
@@ -265,6 +278,44 @@ export default function Products() {
                         ))}
                     </tbody>
                 </table>
+
+                <div className="flex justify-center items-center space-x-2 px-6 py-4 flex-wrap">
+                    <button
+                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                        disabled={currentPage === 1}
+                        className={`px-3 py-1 rounded border text-sm ${currentPage === 1
+                            ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                            : 'bg-white text-gray-700 hover:bg-gray-100'
+                            }`}
+                    >
+                        Prev
+                    </button>
+
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                        <button
+                            key={page}
+                            onClick={() => setCurrentPage(page)}
+                            className={`px-3 py-1 rounded border text-sm ${currentPage === page
+                                ? 'bg-blue-600 text-white font-semibold'
+                                : 'bg-white text-gray-700 hover:bg-gray-100'
+                                }`}
+                        >
+                            {page}
+                        </button>
+                    ))}
+
+                    <button
+                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                        disabled={currentPage === totalPages || totalPages === 0}
+                        className={`px-3 py-1 rounded border text-sm ${currentPage === totalPages || totalPages === 0
+                            ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                            : 'bg-white text-gray-700 hover:bg-gray-100'
+                            }`}
+                    >
+                        Next
+                    </button>
+                </div>
+
             </div>
         </div>
     );
