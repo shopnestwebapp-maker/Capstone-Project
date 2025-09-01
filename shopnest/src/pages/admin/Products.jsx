@@ -17,6 +17,9 @@ export default function Products() {
         stock_quantity: ''
     });
 
+    // New state for search query
+    const [searchQuery, setSearchQuery] = useState('');
+
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -66,6 +69,11 @@ export default function Products() {
             setError('Failed to delete product', err);
         }
     };
+
+    // Filter products based on search query
+    const filteredProducts = products.filter(product =>
+        product.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
     if (loading) {
         return <div className="flex justify-center items-center h-64">Loading products...</div>;
@@ -200,6 +208,17 @@ export default function Products() {
                 </form>
             </div>
 
+            {/* Search Input */}
+            <div className="flex justify-end">
+                <input
+                    type="text"
+                    placeholder="Search products..."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className="mb-3 w-full md:w-64 px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                />
+            </div>
+
             {/* Products Table */}
             <div className="bg-white shadow overflow-hidden sm:rounded-lg">
                 <table className="min-w-full divide-y divide-gray-200">
@@ -226,41 +245,49 @@ export default function Products() {
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                        {products.map((product) => (
-                            <tr key={product.id}>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {product.id}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                    {product.name}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    ${product.price}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {product.category_name || 'N/A'}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {product.stock_quantity}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                    <div className="flex space-x-2">
-                                        <Link
-                                            to={`/admin/products/edit/${product.id}`}
-                                            className="text-blue-600 hover:text-blue-900"
-                                        >
-                                            <PencilIcon className="h-5 w-5" />
-                                        </Link>
-                                        <button
-                                            onClick={() => handleDeleteProduct(product.id)}
-                                            className="text-red-600 hover:text-red-900"
-                                        >
-                                            <TrashIcon className="h-5 w-5" />
-                                        </button>
-                                    </div>
+                        {filteredProducts.length > 0 ? (
+                            filteredProducts.map((product) => (
+                                <tr key={product.id}>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        {product.id}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                        {product.name}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        ${product.price}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        {product.category_name || 'N/A'}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        {product.stock_quantity}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                        <div className="flex space-x-2">
+                                            <Link
+                                                to={`/admin/products/edit/${product.id}`}
+                                                className="text-blue-600 hover:text-blue-900"
+                                            >
+                                                <PencilIcon className="h-5 w-5" />
+                                            </Link>
+                                            <button
+                                                onClick={() => handleDeleteProduct(product.id)}
+                                                className="text-red-600 hover:text-red-900"
+                                            >
+                                                <TrashIcon className="h-5 w-5" />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))
+                        ) : (
+                            <tr>
+                                <td colSpan="6" className="px-6 py-4 text-center text-sm text-gray-500">
+                                    No products found.
                                 </td>
                             </tr>
-                        ))}
+                        )}
                     </tbody>
                 </table>
             </div>
