@@ -119,7 +119,7 @@ export default function ProductPage() {
                     <div className="mt-8 border-t border-gray-200 pt-6">
                         <h3 className="text-lg font-medium mb-2">Product Details</h3>
                         <ul className="list-disc pl-5 space-y-1 text-gray-600">
-                            <li>Category: Electronics</li>
+                            {/* <li>Category: {product.ca}</li> */}
                             <li>Stock: {product.stock_quantity} available</li>
                             <li>Free shipping on orders over $50</li>
                             <li>30-day return policy</li>
