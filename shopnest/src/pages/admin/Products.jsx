@@ -17,8 +17,9 @@ export default function Products() {
         stock_quantity: ''
     });
 
-    // New state for search query
+    // Search states
     const [searchQuery, setSearchQuery] = useState('');
+    const [searchCategory, setSearchCategory] = useState('');
 
     useEffect(() => {
         const fetchData = async () => {
@@ -70,10 +71,12 @@ export default function Products() {
         }
     };
 
-    // Filter products based on search query
-    const filteredProducts = products.filter(product =>
-        product.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    // Filter products by name and category
+    const filteredProducts = products.filter(product => {
+        const matchesName = product.name.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesCategory = searchCategory ? (product.category_id === searchCategory || String(product.category_id) === searchCategory) : true;
+        return matchesName && matchesCategory;
+    });
 
     if (loading) {
         return <div className="flex justify-center items-center h-64">Loading products...</div>;
@@ -208,19 +211,31 @@ export default function Products() {
                 </form>
             </div>
 
-            {/* Search Input */}
-            <div className="flex justify-end">
+            {/* Search Inputs */}
+            <div className="flex flex-col md:flex-row md:items-center md:justify-end space-y-3 md:space-y-0 md:space-x-4">
                 <input
                     type="text"
                     placeholder="Search products..."
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
-                    className="mb-3 w-full md:w-64 px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full md:w-64 px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 />
+                <select
+                    value={searchCategory}
+                    onChange={e => setSearchCategory(e.target.value)}
+                    className="w-full md:w-48 px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                >
+                    <option value="">All Categories</option>
+                    {categories.map(category => (
+                        <option key={category.id} value={category.id}>
+                            {category.name}
+                        </option>
+                    ))}
+                </select>
             </div>
 
             {/* Products Table */}
-            <div className="bg-white shadow overflow-hidden sm:rounded-lg">
+            <div className="bg-white shadow overflow-hidden sm:rounded-lg mt-3">
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr>
