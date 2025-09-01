@@ -43,7 +43,7 @@ export default function Products() {
     const handleAddProduct = async (e) => {
         e.preventDefault();
         try {
-            const res = await axios.post('/api/products', newProduct);
+            const res = await axios.post('/api/admin/products/', newProduct);
             setProducts([...products, res.data]);
             setNewProduct({
                 name: '',
@@ -60,7 +60,7 @@ export default function Products() {
 
     const handleDeleteProduct = async (id) => {
         try {
-            await axios.delete(`/api/products/${id}`);
+            await axios.delete(`/api/admin/products/${id}`);
             setProducts(products.filter(prod => prod.id !== id));
         } catch (err) {
             setError('Failed to delete product', err);
@@ -75,13 +75,13 @@ export default function Products() {
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <h1 className="text-2xl font-bold text-gray-800">Products</h1>
-                <Link
+                {/* <Link
                     to="/admin/products/new"
                     className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                 >
                     <PlusIcon className="h-5 w-5 mr-2" />
                     Add Product
-                </Link>
+                </Link> */}
             </div>
 
             {error && (
@@ -182,7 +182,7 @@ export default function Products() {
                         </label>
                         <input
                             type="url"
-                            id="image_url"  
+                            id="image_url"
                             name="image_url"
                             value={newProduct.image_url}
                             onChange={handleInputChange}
@@ -249,7 +249,7 @@ export default function Products() {
                                             to={`/admin/products/edit/${product.id}`}
                                             className="text-blue-600 hover:text-blue-900"
                                         >
-                                            <PencilIcon className="h-5 w-5" /> 
+                                            <PencilIcon className="h-5 w-5" />
                                         </Link>
                                         <button
                                             onClick={() => handleDeleteProduct(product.id)}
