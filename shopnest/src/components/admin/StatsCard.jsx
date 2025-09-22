@@ -1,23 +1,26 @@
 import React from 'react';
 
-const iconClasses = {
-    blue: 'text-blue-600 bg-blue-100',
-    green: 'text-green-600 bg-green-100',
-    purple: 'text-purple-600 bg-purple-100',
-    yellow: 'text-yellow-600 bg-yellow-100',
-    red: 'text-red-600 bg-red-100',
-};
+export default function StatsCard({ title, value, icon: Icon, color }) {
+    const colorClasses = {
+        blue: 'from-blue-400 to-blue-600',
+        green: 'from-green-400 to-green-600',
+        purple: 'from-purple-400 to-purple-600',
+        yellow: 'from-yellow-400 to-yellow-600',
+        emerald: 'from-emerald-400 to-emerald-600',
+    };
 
-export default function StatsCard({ title, value, icon: Icon, color = 'blue' }) {
     return (
-        <div className="bg-white p-6 rounded-lg shadow-md">
-            <div className="flex items-center">
-                <div className={`p-3 rounded-full ${iconClasses[color]}`}>
-                    <Icon className="h-6 w-6" />
+        <div className={`relative p-6 rounded-2xl shadow-lg border border-gray-200 overflow-hidden transform transition-transform duration-300 hover:scale-105`}>
+            {/* Background Gradient */}
+            <div className={`absolute inset-0 bg-gradient-to-br ${colorClasses[color]} opacity-10 rounded-2xl`}></div>
+
+            <div className="relative z-10 flex items-center justify-between">
+                <div className="flex-grow">
+                    <p className="text-sm font-medium text-gray-500 uppercase tracking-wide">{title}</p>
+                    <p className="mt-1 text-3xl font-bold text-gray-900">{value}</p>
                 </div>
-                <div className="ml-4">
-                    <h3 className="text-sm font-medium text-gray-500">{title}</h3>
-                    <p className="text-2xl font-semibold text-gray-900">{value}</p>
+                <div className={`p-3 rounded-full bg-white bg-opacity-80 shadow-md`}>
+                    <Icon className={`h-8 w-8 text-${color}-500`} />
                 </div>
             </div>
         </div>
