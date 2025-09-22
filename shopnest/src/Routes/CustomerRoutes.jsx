@@ -281,6 +281,7 @@ import CheckoutPage from '../pages/customer/CheckoutPage';
 import ProfilePage from '../pages/customer/ProfilePage';
 import WishlistPage from '../pages/customer/WishlistPage';
 import OrdersPage from '../pages/customer/OrdersPage';
+import CatP from '../pages/customer/catP';
 import { useAuth } from '../context/AuthContext';
 
 export default function CustomerRoutes() {
@@ -298,14 +299,15 @@ export default function CustomerRoutes() {
                 <Route path="register" element={user ? <Navigate to="/customer" replace /> : <RegisterPage />} />
                 <Route path="products/:id" element={<ProductPage />} />
                 <Route path="categories/:id" element={<CategoryPage />} />
-                
+
 
                 {/* Protected */}
                 <Route path="cart" element={user ? <CartPage /> : <Navigate to="/customer/login" replace />} />
                 <Route path="checkout" element={user ? <CheckoutPage /> : <Navigate to="/customer/login" replace />} />
                 <Route path="profile" element={user ? <ProfilePage /> : <Navigate to="/customer/login" replace />} />
                 <Route path="wishlist" element={user ? <WishlistPage /> : <Navigate to="/customer/login" replace />} />
-                <Route path="orders" element={user ? <OrdersPage /> : <Navigate to="/customer/login" replace />} />
+                <Route path="categories" element={user ? <CatP /> : <Navigate to="/customer/login" replace />} />
+
             </Route>
         </Routes>
     );

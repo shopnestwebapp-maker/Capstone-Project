@@ -1,22 +1,20 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import ProductCard from '../../components/customer/ProductCard';
-import CategoryCard from '../../components/customer/CategoryCard';
+
 
 export default function HomePage() {
     const [products, setProducts] = useState([]);
-    const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [productsRes, categoriesRes] = await Promise.all([
+                const [productsRes] = await Promise.all([
                     axios.get('/api/products'),
                     axios.get('/api/categories')
                 ]);
                 setProducts(productsRes.data);
-                setCategories(categoriesRes.data);
             } catch (err) {
                 console.error('Error fetching data:', err);
             } finally {
@@ -43,15 +41,7 @@ export default function HomePage() {
                 </div>
             </section>
 
-            {/* Categories Section */}
-            <section>
-                <h2 className="text-2xl font-bold mb-6">Shop by Category</h2>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {categories.map(category => (
-                        <CategoryCard key={category.id} category={category} />
-                    ))}
-                </div>
-            </section>
+          
 
             {/* Featured Products */}
             <section>
