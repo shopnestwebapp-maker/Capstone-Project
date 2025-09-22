@@ -15,8 +15,8 @@ const app = express();
 const pool = mysql.createPool({
     host: process.env.DB_HOST || 'localhost',
     user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || 'qwertyuiop',
-    database: process.env.DB_NAME || 'ShopNest',
+    password: process.env.DB_PASSWORD || 'aa',
+    database: process.env.DB_NAME || 'ShopNestaa',
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0
