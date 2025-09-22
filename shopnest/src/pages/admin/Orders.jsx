@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { PencilIcon } from '@heroicons/react/24/outline';
+import { TrashIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 
 export default function Orders() {
     const [orders, setOrders] = useState([]);
@@ -13,7 +13,8 @@ export default function Orders() {
                 const res = await axios.get('/api/admin/orders');
                 setOrders(res.data);
             } catch (err) {
-                setError('Failed to fetch orders');
+                console.error('Failed to fetch orders:', err);
+                setError('Failed to fetch orders. Please try again later.');
             } finally {
                 setLoading(false);
             }
@@ -27,95 +28,109 @@ export default function Orders() {
             setOrders(orders.map(order =>
                 order.id === orderId ? { ...order, status: newStatus } : order
             ));
+            setError('');
         } catch (err) {
-            setError('Failed to update order status');
+            console.error('Failed to update order status:', err);
+            setError('Failed to update order status. Please try again.');
+        }
+    };
+
+    const handleDeleteOrder = async (orderId) => {
+        if (window.confirm('Are you sure you want to delete this order? This action cannot be undone.')) {
+            try {
+                await axios.delete(`/api/orders/${orderId}`);
+                setOrders(orders.filter(order => order.id !== orderId));
+                setError('');
+            } catch (err) {
+                console.error('Failed to delete order:', err);
+                setError('Failed to delete order. It may be linked to other data or you do not have permission.');
+            }
         }
     };
 
     if (loading) {
-        return <div className="flex justify-center items-center h-64">Loading orders...</div>;
+        return (
+            <div className="flex justify-center items-center h-64">
+                <div className="animate-spin text-blue-500">
+                    <ArrowPathIcon className="h-10 w-10" />
+                </div>
+                <p className="ml-4 text-lg text-gray-600">Loading orders...</p>
+            </div>
+        );
     }
 
     return (
-        <div className="space-y-6">
-            <h1 className="text-2xl font-bold text-gray-800">Orders</h1>
+        <div className="space-y-6 p-6 bg-gray-100 min-h-screen">
+            <h1 className="text-3xl font-bold text-gray-800">Orders Management</h1>
 
             {error && (
-                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg shadow-sm">
                     {error}
                 </div>
             )}
 
-            <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-                <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                        <tr>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Order ID
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Customer
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Amount
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Status
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Date
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Actions
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                        {orders.map((order) => (
-                            <tr key={order.id}>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    #{order.id}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                    {order.username}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    ${order.total_amount}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                    <select
-                                        value={order.status}
-                                        onChange={(e) => handleStatusChange(order.id, e.target.value)}
-                                        className={`px-2 py-1 rounded-md text-sm ${order.status === 'delivered' ? 'bg-green-100 text-green-800' :
-                                            order.status === 'shipped' ? 'bg-blue-100 text-blue-800' :
-                                                order.status === 'processing' ? 'bg-yellow-100 text-yellow-800' :
-                                                    'bg-gray-100 text-gray-800'
-                                            }`}
-                                    >
-                                        <option value="pending">Pending</option>
-                                        <option value="processing">Processing</option>
-                                        <option value="shipped">Shipped</option>
-                                        <option value="delivered">Delivered</option>
-                                    </select>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {new Date(order.created_at).toLocaleDateString()}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                    <button
-                                        onClick={() => {
-                                            // Implement view order details functionality
-                                        }}
-                                        className="text-blue-600 hover:text-blue-900"
-                                    >
-                                        <PencilIcon className="h-5 w-5" />
-                                    </button>
-                                </td>
+            <div className="bg-white rounded-lg shadow-md overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                            <tr>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Order ID</th>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Customer</th>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Amount</th>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
+                                <th scope="col" className="px-6 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                            {orders.length > 0 ? (
+                                orders.map((order) => (
+                                    <tr key={order.id} className="hover:bg-gray-50 transition-colors">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">#{order.id}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{order.username}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${order.total_amount}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <select
+                                                value={order.status}
+                                                onChange={(e) => handleStatusChange(order.id, e.target.value)}
+                                                className={`py-1 rounded-md text-sm border-none focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500 transition-colors capitalize
+                                                ${order.status === 'delivered' ? 'bg-green-100 text-green-800' :
+                                                        order.status === 'shipped' ? 'bg-blue-100 text-blue-800' :
+                                                            order.status === 'processing' ? 'bg-yellow-100 text-yellow-800' :
+                                                                'bg-gray-100 text-gray-800'
+                                                    }`}
+                                            >
+                                                <option value="pending">Pending</option>
+                                                <option value="processing">Processing</option>
+                                                <option value="shipped">Shipped</option>
+                                                <option value="delivered">Delivered</option>
+                                            </select>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(order.created_at).toLocaleDateString()}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                            <div className="flex justify-center items-center">
+                                                <button
+                                                    onClick={() => handleDeleteOrder(order.id)}
+                                                    className="text-red-600 hover:text-red-800 transition-colors p-1 rounded-full hover:bg-red-50"
+                                                >
+                                                    <TrashIcon className="h-5 w-5" />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan="6" className="text-center py-10 text-gray-500 text-lg">
+                                        No orders found.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     );
 }
+

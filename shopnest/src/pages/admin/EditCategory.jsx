@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
+import { ArrowLeftIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 
 export default function EditCategory() {
     const { id } = useParams();
@@ -14,10 +15,10 @@ export default function EditCategory() {
         const fetchCategory = async () => {
             try {
                 const res = await axios.get(`/api/categories/${id}`);
-                console.log("Fetched category:", res.data); // 👀 confirm shape
-                setCategory(res.data[0]); // response is single object
+                setCategory(res.data[0]);
             } catch (err) {
-                setError("Failed to load category",err);
+                console.error("Failed to load category:", err);
+                setError("Failed to load category. Please check the ID and try again.");
             } finally {
                 setLoading(false);
             }
@@ -39,47 +40,96 @@ export default function EditCategory() {
             });
             navigate("/admin/categories");
         } catch (err) {
-            setError("Failed to update category",err);
+            console.error("Failed to update category:", err);
+            setError("Failed to update category. Please try again.");
         }
     };
 
-    if (loading) return <div>Loading...</div>;
-    if (error) return <div className="text-red-600">{error}</div>;
-    if (!category) return <div>No category found</div>;
+    if (loading) {
+        return (
+            <div className="flex justify-center items-center h-screen bg-gray-100">
+                <div className="animate-spin text-blue-500">
+                    <ArrowPathIcon className="h-10 w-10" />
+                </div>
+                <p className="ml-4 text-lg text-gray-600">Loading category details...</p>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="flex justify-center items-center h-screen bg-gray-100">
+                <div className="bg-red-100 border border-red-400 text-red-700 px-6 py-4 rounded-lg shadow-md">
+                    <p className="font-semibold mb-2">Error</p>
+                    <p>{error}</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (!category) {
+        return (
+            <div className="flex justify-center items-center h-screen bg-gray-100">
+                <div className="bg-white px-6 py-4 rounded-lg shadow-md">
+                    <p className="text-lg text-gray-600">No category found with this ID.</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
-        <div className="max-w-lg mx-auto bg-white p-6 shadow rounded-lg">
-            <h1 className="text-xl font-bold mb-4">Edit Category</h1>
-            <form onSubmit={handleUpdate} className="space-y-4">
+        <div className="max-w-xl mx-auto p-6 bg-white rounded-lg shadow-xl">
+            <div className="flex justify-between items-center mb-6">
+                <h1 className="text-2xl font-bold text-gray-800">Edit Category</h1>
+                <button
+                    onClick={() => navigate("/admin/categories")}
+                    className="flex items-center text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+                >
+                    <ArrowLeftIcon className="h-4 w-4 mr-1" /> Back to Categories
+                </button>
+            </div>
+
+            <form onSubmit={handleUpdate} className="space-y-6">
                 <div>
-                    <label className="block text-sm font-medium">Name</label>
+                    <label htmlFor="name" className="block text-sm font-medium text-gray-700">Name</label>
                     <input
                         type="text"
+                        id="name"
                         name="name"
-                        value={category.name || ""}   // ✅ now works
+                        value={category.name || ""}
                         onChange={handleChange}
                         required
-                        className="mt-1 block w-full border border-gray-300 rounded-md p-2"
+                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     />
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium">Description</label>
+                    <label htmlFor="description" className="block text-sm font-medium text-gray-700">Description</label>
                     <textarea
+                        id="description"
                         name="description"
-                        value={category.description || ""}   // ✅ now works
+                        value={category.description || ""}
                         onChange={handleChange}
-                        rows={3}
-                        className="mt-1 block w-full border border-gray-300 rounded-md p-2"
+                        rows={4}
+                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     />
                 </div>
 
-                <button
-                    type="submit"
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                >
-                    Update Category
-                </button>
+                <div className="flex justify-end space-x-4">
+                    <button
+                        type="button"
+                        onClick={() => navigate("/admin/categories")}
+                        className="px-6 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="submit"
+                        className="px-6 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                    >
+                        Save Changes
+                    </button>
+                </div>
             </form>
         </div>
     );

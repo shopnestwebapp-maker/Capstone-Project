@@ -456,7 +456,19 @@ app.get('/api/orders', isAuthenticated, async (req, res) => {
         res.status(500).json({ message: 'Error fetching orders' });
     }
 });
-
+app.delete('/api/orders/:orderId', isAuthenticated, async (req, res) => {
+    const { orderId } = req.params;
+    const userId = req.user.id;
+    try {
+        const [orders] = await pool.query('SELECT * FROM orders WHERE id = ? AND user_id = ?', [orderId, userId]);
+        if (orders.length === 0) {
+            return res.status(403).json({ message: 'Order not found or you do not have permission to delete it.' });
+        }
+    } catch (err) {
+        console.error('Error deleting order:', err);
+        res.status(500).json({ message: 'Error deleting order.' });
+    }
+});
 // Profile Routes
 app.put('/api/profile', isAuthenticated, async (req, res) => {
     try {
