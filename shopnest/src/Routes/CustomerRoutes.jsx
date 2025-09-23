@@ -272,6 +272,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Layout from '../components/customer/Layout';
 import HomePage from '../pages/customer/HomePage';
+import ProductsPages from '../pages/customer/ProdA';
 import LoginPage from '../pages/customer/LoginPage';
 import RegisterPage from '../pages/customer/RegisterPage';
 import ProductPage from '../pages/customer/ProductPage';
@@ -308,6 +309,7 @@ export default function CustomerRoutes() {
                 <Route path="wishlist" element={user ? <WishlistPage /> : <Navigate to="/customer/login" replace />} />
                 <Route path="categories" element={user ? <CatP /> : <Navigate to="/customer/login" replace />} />
                 <Route path="orders" element={user ? <OrdersPage /> : <Navigate to="/customer/login" replace />} />
+                <Route path="allproducts" element={user ? <ProductsPages /> : <Navigate to="/customer/login" replace />} />
 
             </Route>
         </Routes>
