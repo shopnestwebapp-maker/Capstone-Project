@@ -307,6 +307,7 @@ export default function CustomerRoutes() {
                 <Route path="profile" element={user ? <ProfilePage /> : <Navigate to="/customer/login" replace />} />
                 <Route path="wishlist" element={user ? <WishlistPage /> : <Navigate to="/customer/login" replace />} />
                 <Route path="categories" element={user ? <CatP /> : <Navigate to="/customer/login" replace />} />
+                <Route path="orders" element={user ? <OrdersPage /> : <Navigate to="/customer/login" replace />} />
 
             </Route>
         </Routes>
