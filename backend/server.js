@@ -177,12 +177,60 @@ app.get('/api/auth/user', (req, res) => {
 });
 app.get('/api/products', async (req, res) => {
     try {
-        const [products] = await pool.query('SELECT * FROM products');
+        const { categories, minPrice, maxPrice, sort } = req.query;
+
+        // Base query with JOIN
+        let query = `
+            SELECT p.* 
+            FROM products p
+            LEFT JOIN categories c ON p.category_id = c.id
+            WHERE 1=1
+        `;
+        const params = [];
+
+        // Filter by category name
+        if (categories) {
+            const categoryList = categories.split(','); // array of names
+            const placeholders = categoryList.map(() => '?').join(','); // ?,?,?
+            query += ` AND c.name IN (${placeholders})`;
+            params.push(...categoryList);
+        }
+
+        // Price filter
+        if (minPrice) {
+            query += ' AND p.price >= ?';
+            params.push(Number(minPrice));
+        }
+        if (maxPrice) {
+            query += ' AND p.price <= ?';
+            params.push(Number(maxPrice));
+        }
+
+        // Sorting
+        switch (sort) {
+            case 'low-to-high':
+                query += ' ORDER BY p.price ASC';
+                break;
+            case 'high-to-low':
+                query += ' ORDER BY p.price DESC';
+                break;
+            case 'top-rated':
+                query += ' ORDER BY p.id DESC'; // no rating column; fallback
+                break;
+            case 'newest':
+            default:
+                query += ' ORDER BY p.created_at DESC';
+        }
+
+        const [products] = await pool.query(query, params);
         res.json(products);
     } catch (err) {
+        console.error('Error fetching products:', err);
         res.status(500).json({ message: 'Error fetching products' });
     }
 });
+
+
 
 app.get('/api/products/:id', async (req, res) => {
     try {
