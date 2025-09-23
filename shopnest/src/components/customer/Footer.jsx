@@ -10,9 +10,9 @@ export default function Footer() {
                     <div>
                         <h4 className="font-bold mb-4">Quick Links</h4>
                         <ul className="space-y-2">
-                            <li><a href="#" className="text-gray-400 hover:text-white">Home</a></li>
-                            <li><a href="#" className="text-gray-400 hover:text-white">Products</a></li>
-                            <li><a href="#" className="text-gray-400 hover:text-white">Categories</a></li>
+                            <li><a href="/customer" className="text-gray-400 hover:text-white">Home</a></li>
+                            <li><a href="/customer/allproducts" className="text-gray-400 hover:text-white">Products</a></li>
+                            <li><a href="/customer/categories" className="text-gray-400 hover:text-white">Categories</a></li>
                         </ul>
                     </div>
                     <div>
@@ -20,7 +20,7 @@ export default function Footer() {
                         <ul className="space-y-2">
                             <li><a href="#" className="text-gray-400 hover:text-white">Contact Us</a></li>
                             <li><a href="#" className="text-gray-400 hover:text-white">FAQs</a></li>
-                            <li><a href="#" className="text-gray-400 hover:text-white">Returns</a></li>
+                            <li><a href="/customer/orders" className="text-gray-400 hover:text-white">Returns</a></li>
                         </ul>
                     </div>
                     <div>

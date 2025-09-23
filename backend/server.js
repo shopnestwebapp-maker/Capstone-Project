@@ -175,6 +175,30 @@ app.get('/api/auth/user', (req, res) => {
         res.json({ user: null });
     }
 });
+app.get('/api/productss', async (req, res) => {
+    try {
+        const [products] = await pool.query(`
+            SELECT 
+                p.id,
+                p.name,
+                p.description,
+                p.price,
+                p.category_id,
+                c.name AS category_name,
+                p.image_url,
+                p.stock_quantity,
+                p.created_at
+            FROM products p
+            LEFT JOIN categories c ON p.category_id = c.id
+        `);
+
+        res.json(products);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Error fetching products' });
+    }
+});
+
 app.get('/api/products', async (req, res) => {
     try {
         const { categories, minPrice, maxPrice, sort } = req.query;
