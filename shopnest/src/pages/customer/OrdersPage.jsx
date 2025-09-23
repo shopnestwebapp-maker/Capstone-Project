@@ -9,6 +9,8 @@ import {
     ShoppingCartIcon,
     XCircleIcon,
     ArrowUturnLeftIcon,
+    ChevronDownIcon,
+    ChevronUpIcon,
 } from '@heroicons/react/24/outline';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -55,18 +57,23 @@ const getStatusIcon = (status) => {
 
 export default function OrdersPage() {
     const [orders, setOrders] = useState([]);
+    const [filteredOrders, setFilteredOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [showModal, setShowModal] = useState(false);
     const [orderToCancel, setOrderToCancel] = useState(null);
+    const [activeTab, setActiveTab] = useState('all');
+    // New state to track the expanded order
+    const [expandedOrder, setExpandedOrder] = useState(null);
 
     useEffect(() => {
         const fetchOrders = async () => {
             try {
                 const res = await axios.get('/api/orders');
                 setOrders(res.data);
+                setFilteredOrders(res.data);
             } catch (err) {
-                setError('Failed to load orders. Please try again later.', err);
+                setError('Failed to load orders. Please try again later.');
             } finally {
                 setLoading(false);
             }
@@ -74,23 +81,56 @@ export default function OrdersPage() {
         fetchOrders();
     }, []);
 
-    // Cancel => update status instead of delete
+    useEffect(() => {
+        if (activeTab === 'all') {
+            setFilteredOrders(orders);
+        } else {
+            setFilteredOrders(orders.filter(order => order.status === activeTab));
+        }
+    }, [activeTab, orders]);
+
+    const handleTabClick = (tab) => {
+        setActiveTab(tab);
+    };
+
     const handleCancelOrder = async () => {
         if (!orderToCancel) return;
 
         try {
             await axios.put(`/api/admin/orders/${orderToCancel.id}/status`, { status: 'cancelled' });
+
             setOrders(orders.map(order =>
                 order.id === orderToCancel.id ? { ...order, status: 'cancelled' } : order
             ));
+
             toast.success('Order cancelled successfully!');
         } catch (err) {
-            console.error('Failed to load orders:', err);
-            toast.error('Failed to cancel order. Please try again.', err);
+            toast.error('Failed to cancel order. Please try again.');
         } finally {
             setShowModal(false);
             setOrderToCancel(null);
         }
+    };
+
+    const handleReturnOrder = async (order) => {
+        if (!order) return;
+
+        try {
+            await axios.put(`/api/admin/orders/${order.id}/status`, { status: 'returned' });
+
+            setOrders(orders.map(o =>
+                o.id === order.id ? { ...o, status: 'returned' } : o
+            ));
+
+            toast.success('Order marked as returned successfully!');
+        } catch (err) {
+            toast.error(`Failed to return order. ${err.message || ''}`);
+        }
+    };
+
+    // Function to toggle expanded order details
+    const toggleOrderDetails = (orderId) => {
+        setExpandedOrder(expandedOrder === orderId ? null : orderId);
     };
 
     if (loading) {
@@ -107,7 +147,7 @@ export default function OrdersPage() {
 
     return (
         <div className="container mx-auto px-4 py-8 max-w-5xl">
-            <h1 className="text-3xl font-bold text-gray-900 mb-8">My Orders</h1>
+            <h1 className="text-3xl font-bold text-gray-900 mb-6">My Orders</h1>
             <ToastContainer position="top-right" autoClose={3000} />
 
             {error && (
@@ -116,15 +156,36 @@ export default function OrdersPage() {
                 </div>
             )}
 
-            {orders.length === 0 ? (
+            <div className="border-b border-gray-200 mb-6">
+                <nav className="-mb-px flex flex-wrap space-x-4 sm:space-x-8" aria-label="Tabs">
+                    {['all', 'pending', 'processing', 'shipped', 'delivered', 'cancelled', 'returned'].map((tab) => (
+                        <button
+                            key={tab}
+                            onClick={() => handleTabClick(tab)}
+                            className={`${activeTab === tab
+                                ? 'border-blue-500 text-blue-600'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200`}
+                        >
+                            {tab.charAt(0).toUpperCase() + tab.slice(1)} ({orders.filter(o => tab === 'all' || o.status === tab).length})
+                        </button>
+                    ))}
+                </nav>
+            </div>
+
+            {filteredOrders.length === 0 ? (
                 <div className="text-center py-20 bg-gray-50 rounded-lg shadow-inner">
                     <ShoppingCartIcon className="mx-auto h-16 w-16 text-gray-400" />
-                    <h3 className="mt-2 text-xl font-medium text-gray-900">No orders found</h3>
-                    <p className="mt-1 text-sm text-gray-500">You haven't placed any orders yet.</p>
+                    <h3 className="mt-2 text-xl font-medium text-gray-900">
+                        No {activeTab !== 'all' && activeTab} orders found
+                    </h3>
+                    <p className="mt-1 text-sm text-gray-500">
+                        {activeTab === 'all' ? "You haven't placed any orders yet." : `You have no ${activeTab} orders.`}
+                    </p>
                     <div className="mt-6">
                         <Link
                             to="/customer"
-                            className="inline-flex items-center px-6 py-3 text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
+                            className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
                         >
                             Shop Now
                         </Link>
@@ -132,10 +193,10 @@ export default function OrdersPage() {
                 </div>
             ) : (
                 <div className="space-y-6">
-                    {orders.map(order => (
+                    {filteredOrders.map(order => (
                         <div key={order.id} className="bg-white rounded-lg shadow-md overflow-hidden">
                             {/* Order header */}
-                            <div className="p-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-center">
+                            <div className="p-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-center space-y-2 sm:space-y-0">
                                 <div className="flex items-center space-x-4">
                                     <span className="text-gray-600 font-medium">Order #{order.id}</span>
                                     <span className="text-sm text-gray-500">
@@ -155,8 +216,40 @@ export default function OrdersPage() {
                                             Cancel
                                         </button>
                                     )}
+                                    {order.status === 'delivered' && (
+                                        <button
+                                            onClick={() => handleReturnOrder(order)}
+                                            className="ml-2 inline-flex items-center px-3 py-1 text-xs font-medium rounded-full shadow-sm text-orange-700 bg-orange-100 hover:bg-orange-200"
+                                        >
+                                            <ArrowUturnLeftIcon className="h-4 w-4 mr-1" />
+                                            Return
+                                        </button>
+                                    )}
+                                    <button onClick={() => toggleOrderDetails(order.id)} className="ml-2 p-1 text-gray-500 hover:text-gray-900 transition-transform duration-200">
+                                        {expandedOrder === order.id ? <ChevronUpIcon className="h-5 w-5" /> : <ChevronDownIcon className="h-5 w-5" />}
+                                    </button>
                                 </div>
                             </div>
+
+                            {/* Expandable details section */}
+                            {expandedOrder === order.id && (
+                                <div className="p-4 border-b border-gray-200 bg-gray-50">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div>
+                                            <p className="font-bold text-gray-700">Shipping Address</p>
+                                            {/* Assuming these properties exist in your order object */}
+                                            <p className="text-sm text-gray-600">{order.shipping_address || 'Address not available'}</p>
+                                            <p className="text-sm text-gray-600">{order.city || 'City not available'}, {order.postal_code || 'Postal code not available'}</p>
+                                            <p className="text-sm text-gray-600">{order.country || 'Country not available'}</p>
+                                        </div>
+                                        <div>
+                                            <p className="font-bold text-gray-700">Payment Details</p>
+                                            {/* Assuming payment_method exists */}
+                                            <p className="text-sm text-gray-600">Payment Method: {order.payment_method || 'N/A'}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Items */}
                             <div className="p-4">
@@ -184,29 +277,22 @@ export default function OrdersPage() {
                                 ))}
                             </div>
 
-                            {/* Timeline */}
-                            <div className="p-4 bg-gray-50">
-                                <div className="flex flex-col space-y-2 text-sm text-gray-600">
-                                    {order.processing_at && <p>🛠 Processing at: {new Date(order.processing_at).toLocaleString()}</p>}
-                                    {order.shipped_at && <p>📦 Shipped at: {new Date(order.shipped_at).toLocaleString()}</p>}
-                                    {order.delivered_at && <p>✅ Delivered at: {new Date(order.delivered_at).toLocaleString()}</p>}
+                            {/* Footer */}
+                            <div className="p-4 bg-gray-50 flex justify-between items-center">
+                                <div className="flex items-center space-x-2">
+                                    {getStatusIcon(order.status)}
+                                    <span className="text-sm text-gray-600">
+                                        {order.status === 'pending' && 'Your order is being processed'}
+                                        {order.status === 'processing' && 'Your order is being prepared'}
+                                        {order.status === 'shipped' && 'Your order is on the way'}
+                                        {order.status === 'delivered' && 'Your order has been delivered'}
+                                        {order.status === 'cancelled' && 'This order has been cancelled'}
+                                        {order.status === 'returned' && 'This order was returned'}
+                                    </span>
                                 </div>
-                                <div className="flex justify-between items-center mt-3">
-                                    <div className="flex items-center space-x-2">
-                                        {getStatusIcon(order.status)}
-                                        <span>
-                                            {order.status === 'pending' && 'Your order is being processed'}
-                                            {order.status === 'processing' && 'Your order is being prepared'}
-                                            {order.status === 'shipped' && 'Your order is on the way'}
-                                            {order.status === 'delivered' && 'Your order has been delivered'}
-                                            {order.status === 'cancelled' && 'This order has been cancelled'}
-                                            {order.status === 'returned' && 'This order was returned'}
-                                        </span>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-sm text-gray-500">Total</p>
-                                        <p className="text-lg font-medium">₹{Number(order.total_amount).toFixed(2)}</p>
-                                    </div>
+                                <div className="text-right">
+                                    <p className="text-sm text-gray-500">Total</p>
+                                    <p className="text-lg font-medium">₹{Number(order.total_amount).toFixed(2)}</p>
                                 </div>
                             </div>
                         </div>
@@ -225,13 +311,15 @@ export default function OrdersPage() {
                         </div>
                         <div className="mt-5 sm:grid sm:grid-cols-2 gap-3">
                             <button
+                                type="button"
                                 className="w-full bg-red-600 px-4 py-2 text-base font-medium text-white rounded-md hover:bg-red-700"
                                 onClick={handleCancelOrder}
                             >
                                 Cancel Order
                             </button>
                             <button
-                                className="w-full border border-gray-300 bg-white px-4 py-2 text-base font-medium rounded-md hover:bg-gray-50"
+                                type="button"
+                                className="w-full border border-gray-300 bg-white px-4 py-2 text-base font-medium rounded-md hover:bg-gray-50 mt-3 sm:mt-0"
                                 onClick={() => setShowModal(false)}
                             >
                                 Go Back

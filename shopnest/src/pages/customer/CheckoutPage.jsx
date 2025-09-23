@@ -23,7 +23,7 @@ export default function CheckoutPage() {
                 const res = await axios.get('/api/cart');
                 setCart(res.data);
             } catch (err) {
-                setError('Failed to load cart',err);
+                setError('Failed to load cart', err);
             } finally {
                 setLoading(false);
             }
@@ -39,7 +39,7 @@ export default function CheckoutPage() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            await axios.post('/api/orders/create');
+            await axios.post('/api/orders/create', formData); // Pass formData in the request body
             navigate('/customer/orders');
         } catch (err) {
             setError('Failed to place order. Please try again.',err);
@@ -48,6 +48,10 @@ export default function CheckoutPage() {
 
     if (loading) {
         return <div className="flex justify-center items-center h-64">Loading...</div>;
+    }
+
+    if (error) {
+        return <div className="text-center text-red-500">{error}</div>;
     }
 
     return (

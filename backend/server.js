@@ -391,6 +391,14 @@ app.delete('/api/wishlist/remove/:productId', isAuthenticated, async (req, res) 
 
 // Order Routes
 app.post('/api/orders/create', isAuthenticated, async (req, res) => {
+    // Extract data from the request body
+    const { name, email, address, city, state, zip, paymentMethod } = req.body;
+
+    // Basic validation to ensure all required fields are present
+    if (!name || !email || !address || !city || !state || !zip || !paymentMethod) {
+        return res.status(400).json({ message: 'Missing required shipping or payment information' });
+    }
+
     try {
         const [carts] = await pool.query('SELECT * FROM carts WHERE user_id = ?', [req.user.id]);
         if (carts.length === 0) {
@@ -399,21 +407,31 @@ app.post('/api/orders/create', isAuthenticated, async (req, res) => {
 
         const cartId = carts[0].id;
         const [cartItems] = await pool.query(`
-      SELECT ci.*, p.price 
-      FROM cart_items ci
-      JOIN products p ON ci.product_id = p.id
-      WHERE ci.cart_id = ?
-    `, [cartId]);
+            SELECT ci.*, p.price, p.stock_quantity
+            FROM cart_items ci
+            JOIN products p ON ci.product_id = p.id
+            WHERE ci.cart_id = ?
+        `, [cartId]);
 
         if (cartItems.length === 0) {
             return res.status(400).json({ message: 'Cart is empty' });
         }
 
+        // Check if any product is out of stock
+        for (const item of cartItems) {
+            if (item.quantity > item.stock_quantity) {
+                return res.status(400).json({ message: `Insufficient stock for product: ${item.name}` });
+            }
+        }
+
         const totalAmount = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
+        // Start a transaction to ensure all database operations succeed or fail together
+        await pool.query('START TRANSACTION');
+
         const [orderResult] = await pool.query(
-            'INSERT INTO orders (user_id, total_amount) VALUES (?, ?)',
-            [req.user.id, totalAmount]
+            'INSERT INTO orders (user_id, total_amount, shipping_address, payment_method) VALUES (?, ?, ?, ?)',
+            [req.user.id, totalAmount, `${name}, ${address}, ${city}, ${state} ${zip}`, paymentMethod]
         );
         const orderId = orderResult.insertId;
 
@@ -423,16 +441,24 @@ app.post('/api/orders/create', isAuthenticated, async (req, res) => {
                 [orderId, item.product_id, item.quantity, item.price]
             );
 
+            // Decrease stock quantity
             await pool.query(
                 'UPDATE products SET stock_quantity = stock_quantity - ? WHERE id = ?',
                 [item.quantity, item.product_id]
             );
         }
 
+        // Clear the user's cart
         await pool.query('DELETE FROM cart_items WHERE cart_id = ?', [cartId]);
+
+        // Commit the transaction
+        await pool.query('COMMIT');
 
         res.json({ message: 'Order created successfully', orderId });
     } catch (err) {
+        // Rollback the transaction if any error occurs
+        await pool.query('ROLLBACK');
+        console.error('Error creating order:', err);
         res.status(500).json({ message: 'Error creating order' });
     }
 });
@@ -459,16 +485,28 @@ app.get('/api/orders', isAuthenticated, async (req, res) => {
 app.delete('/api/orders/:orderId', isAuthenticated, async (req, res) => {
     const { orderId } = req.params;
     const userId = req.user.id;
+
     try {
-        const [orders] = await pool.query('SELECT * FROM orders WHERE id = ? AND user_id = ?', [orderId, userId]);
+        // Check if the order exists and belongs to the user
+        const [orders] = await pool.query(
+            'SELECT * FROM orders WHERE id = ? AND user_id = ?',
+            [orderId, userId]
+        );
+
         if (orders.length === 0) {
             return res.status(403).json({ message: 'Order not found or you do not have permission to delete it.' });
         }
+
+        // Delete the order (order_items will be deleted automatically due to ON DELETE CASCADE)
+        await pool.query('DELETE FROM orders WHERE id = ?', [orderId]);
+
+        res.status(200).json({ message: 'Order deleted successfully.' });
     } catch (err) {
         console.error('Error deleting order:', err);
         res.status(500).json({ message: 'Error deleting order.' });
     }
 });
+
 // Profile Routes
 app.put('/api/profile', isAuthenticated, async (req, res) => {
     try {
@@ -682,12 +720,42 @@ app.get('/api/admin/orders', isAdmin, async (req, res) => {
 app.put('/api/admin/orders/:id/status', isAdmin, async (req, res) => {
     try {
         const { status } = req.body;
-        await pool.query('UPDATE orders SET status = ? WHERE id = ?', [status, req.params.id]);
+        let timestampColumn = null;
+
+        // Determine which timestamp column to update based on status
+        switch (status) {
+            case 'processing':
+                timestampColumn = 'processing_at';
+                break;
+            case 'shipped':
+                timestampColumn = 'shipped_at';
+                break;
+            case 'delivered':
+                timestampColumn = 'delivered_at';
+                break;
+            default:
+                timestampColumn = null; // No timestamp for other statuses
+        }
+
+        if (timestampColumn) {
+            await pool.query(
+                `UPDATE orders SET status = ?, ${timestampColumn} = NOW() WHERE id = ?`,
+                [status, req.params.id]
+            );
+        } else {
+            await pool.query(
+                'UPDATE orders SET status = ? WHERE id = ?',
+                [status, req.params.id]
+            );
+        }
+
         res.json({ message: 'Order status updated successfully' });
     } catch (err) {
+        console.error('Error updating order status:', err);
         res.status(500).json({ message: 'Error updating order status' });
     }
 });
+
 
 // Start server
 const PORT = process.env.PORT || 5000;
