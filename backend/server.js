@@ -48,7 +48,7 @@ app.use(passport.session())
 passport.use(new LocalStrategy(
     async (username, password, done) => {
         try {
-            const [users] = await pool.query('SELECT * FROM users WHERE username = ?', [username]);
+            const [users] = await pool.query('SELECT * FROM users WHERE email = ?', [username]);
             if (users.length === 0) {
                 return done(null, false, { message: 'Incorrect username.' });
             }
