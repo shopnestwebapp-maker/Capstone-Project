@@ -5,7 +5,8 @@ import {
     Bars3Icon,
     XMarkIcon,
     MagnifyingGlassIcon,
-    UserCircleIcon
+    UserCircleIcon,
+    TrophyIcon // New import
 } from '@heroicons/react/24/outline';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
@@ -166,6 +167,12 @@ export default function Navbar({ user, onLogout }) {
                             </button>
                         </div>
 
+                        {/* New Rewards Icon */}
+                        <Link to="/customer/rewards" className="p-2 text-gray-700 hover:text-blue-600 relative transition-colors duration-200">
+                            <TrophyIcon className="h-6 w-6" />
+                        </Link>
+                        {/* End New Rewards Icon */}
+
                         {/* Wishlist */}
                         <Link to="/customer/wishlist" className="p-2 text-gray-700 hover:text-blue-600 relative transition-colors duration-200">
                             <HeartIcon className="h-6 w-6" />
@@ -231,6 +238,9 @@ export default function Navbar({ user, onLogout }) {
                 <div className="flex flex-col items-center space-y-4">
                     <Link to="/" className="text-gray-700 hover:text-blue-600 transition-colors duration-200" onClick={toggleMobileMenu}>Home</Link>
                     <Link to="/customer/categories" className="text-gray-700 hover:text-blue-600 transition-colors duration-200" onClick={toggleMobileMenu}>Categories</Link>
+                    {/* New Mobile Rewards Link */}
+                    <Link to="/customer/rewards" className="text-gray-700 hover:text-blue-600 transition-colors duration-200" onClick={toggleMobileMenu}>Rewards</Link>
+                    {/* End New Mobile Rewards Link */}
                     {user ? (
                         <>
                             <Link to="/customer/profile" className="text-gray-700 hover:text-blue-600 transition-colors duration-200" onClick={toggleMobileMenu}>My Profile</Link>

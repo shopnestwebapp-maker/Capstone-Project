@@ -16,10 +16,7 @@ export default function ProductsPage() {
     // Initialize filters and sort from URL
     const [filters, setFilters] = useState({
         category: searchParams.get('categories') ? searchParams.get('categories').split(',') : [],
-        price: {
-            min: Number(searchParams.get('minPrice')) || 0,
-            max: Number(searchParams.get('maxPrice')) || 1000,
-        },
+        price: [],
         color: [],
     });
 

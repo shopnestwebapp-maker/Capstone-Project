@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
+import { CheckCircleIcon, ExclamationCircleIcon, UserCircleIcon } from '@heroicons/react/24/outline';
 
 export default function ProfilePage() {
     const { user, setUser } = useAuth();
@@ -36,7 +37,7 @@ export default function ProfilePage() {
         setSuccess('');
 
         if (formData.password && formData.password !== formData.confirmPassword) {
-            setError('Passwords do not match');
+            setError('Passwords do not match.');
             return;
         }
 
@@ -47,105 +48,127 @@ export default function ProfilePage() {
                 password: formData.password || undefined
             }, { withCredentials: true });
 
-            // Update user context if username changed
-            if (formData.username !== user.username) {
-                const updatedUser = { ...user, username: formData.username, email: formData.email };
-                setUser(updatedUser);
-            }
+            // Update user context with new email and keep username as it is
+            // as it is disabled and not sent in API call
+            const updatedUser = { ...user, email: formData.email };
+            setUser(updatedUser);
 
-            setSuccess('Profile updated successfully');
+            setSuccess('Profile updated successfully!');
+            // Clear password fields after successful update
+            setFormData(prev => ({ ...prev, password: '', confirmPassword: '' }));
         } catch (err) {
-            setError(err.response?.data?.message || 'Failed to update profile');
+            setError(err.response?.data?.message || 'Failed to update profile.');
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="container mx-auto px-4 py-8">
-            <h1 className="text-3xl font-bold mb-8">My Profile</h1>
-
-            {error && (
-                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-                    {error}
+        <div className="flex justify-center items-center min-h-[calc(100vh-80px)] bg-gray-50 px-4 py-12 sm:px-6 lg:px-8">
+            <div className="max-w-xl w-full space-y-8 p-10 bg-white rounded-2xl shadow-lg border border-gray-100">
+                <div className="flex flex-col items-center">
+                    <UserCircleIcon className="h-16 w-16 text-blue-500 mb-2" />
+                    <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">
+                        My Profile
+                    </h1>
+                    <p className="mt-2 text-center text-sm text-gray-600">
+                        Update your account details and password.
+                    </p>
                 </div>
-            )}
 
-            {success && (
-                <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
-                    {success}
-                </div>
-            )}
-
-            <div className="max-w-lg bg-white rounded-lg shadow-md p-6">
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                        <label htmlFor="username" className="block text-sm font-medium text-gray-700">
-                            Username
-                        </label>
-                        <input
-                            type="text"
-                            id="username"
-                            name="username"
-                            value={formData.username}
-                            onChange={handleInputChange}
-                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                            required
-                            disabled
-                        />
+                {success && (
+                    <div className="rounded-md bg-green-50 p-4 border border-green-200">
+                        <div className="flex items-center">
+                            <CheckCircleIcon className="h-5 w-5 text-green-400" aria-hidden="true" />
+                            <p className="ml-3 text-sm font-medium text-green-800">{success}</p>
+                        </div>
                     </div>
+                )}
 
-                    <div>
-                        <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                            Email
-                        </label>
-                        <input
-                            type="email"
-                            id="email"
-                            name="email"
-                            value={formData.email}
-                            onChange={handleInputChange}
-                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                            required
-                        />
+                {error && (
+                    <div className="rounded-md bg-red-50 p-4 border border-red-200">
+                        <div className="flex items-center">
+                            <ExclamationCircleIcon className="h-5 w-5 text-red-400" aria-hidden="true" />
+                            <p className="ml-3 text-sm font-medium text-red-800">{error}</p>
+                        </div>
                     </div>
+                )}
 
-                    <div>
-                        <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                            New Password (leave blank to keep current)
-                        </label>
-                        <input
-                            type="password"
-                            id="password"
-                            name="password"
-                            value={formData.password}
-                            onChange={handleInputChange}
-                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                        />
-                    </div>
-
-                    {formData.password && (
+                <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+                    <div className="rounded-md shadow-sm -space-y-px">
                         <div>
-                            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-                                Confirm New Password
-                            </label>
+                            <label htmlFor="username" className="sr-only">Username</label>
                             <input
-                                type="password"
-                                id="confirmPassword"
-                                name="confirmPassword"
-                                value={formData.confirmPassword}
+                                id="username"
+                                name="username"
+                                type="text"
+                                value={formData.username}
                                 onChange={handleInputChange}
-                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                disabled
+                                className="appearance-none rounded-t-md relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm cursor-not-allowed bg-gray-100"
+                                placeholder="Username"
                             />
                         </div>
-                    )}
+                        <div>
+                            <label htmlFor="email" className="sr-only">Email address</label>
+                            <input
+                                id="email"
+                                name="email"
+                                type="email"
+                                autoComplete="email"
+                                required
+                                value={formData.email}
+                                onChange={handleInputChange}
+                                className="appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                placeholder="Email address"
+                            />
+                        </div>
+                        <div>
+                            <label htmlFor="password" className="sr-only">New Password</label>
+                            <input
+                                id="password"
+                                name="password"
+                                type="password"
+                                autoComplete="new-password"
+                                value={formData.password}
+                                onChange={handleInputChange}
+                                className="appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm mt-px"
+                                placeholder="New Password (leave blank to keep current)"
+                            />
+                        </div>
+                        {formData.password && (
+                            <div>
+                                <label htmlFor="confirmPassword" className="sr-only">Confirm New Password</label>
+                                <input
+                                    id="confirmPassword"
+                                    name="confirmPassword"
+                                    type="password"
+                                    autoComplete="new-password"
+                                    required
+                                    value={formData.confirmPassword}
+                                    onChange={handleInputChange}
+                                    className="appearance-none rounded-b-md relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm mt-px"
+                                    placeholder="Confirm New Password"
+                                />
+                            </div>
+                        )}
+                    </div>
 
-                    <div className="pt-4">
+                    <div>
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50"
+                            className={`group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white transition-colors duration-200
+                                ${loading ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'}`}
                         >
+                            <span className="absolute left-0 inset-y-0 flex items-center pl-3">
+                                {loading && (
+                                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                )}
+                            </span>
                             {loading ? 'Updating...' : 'Update Profile'}
                         </button>
                     </div>

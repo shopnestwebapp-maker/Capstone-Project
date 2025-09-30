@@ -282,6 +282,9 @@ import CheckoutPage from '../pages/customer/CheckoutPage';
 import ProfilePage from '../pages/customer/ProfilePage';
 import WishlistPage from '../pages/customer/WishlistPage';
 import OrdersPage from '../pages/customer/OrdersPage';
+import RewardPage from '../pages/customer/rewardDasboard';
+import Rewardspin from '../pages/customer/SpinTheWheel';
+import RewardsHistory    from '../pages/customer/RewardsHistory';
 import CatP from '../pages/customer/catP';
 import { useAuth } from '../context/AuthContext';
 
@@ -310,6 +313,9 @@ export default function CustomerRoutes() {
                 <Route path="categories" element={user ? <CatP /> : <Navigate to="/customer/login" replace />} />
                 <Route path="orders" element={user ? <OrdersPage /> : <Navigate to="/customer/login" replace />} />
                 <Route path="allproducts" element={user ? <ProductsPages /> : <Navigate to="/customer/login" replace />} />
+                <Route path="rewards" element={user ? <RewardPage /> : <Navigate to="/customer/login" replace />} />
+                <Route path="rewards/spin" element={user ? <Rewardspin /> : <Navigate to="/customer/login" replace />} />
+                <Route path="rewards/history" element={user ? <RewardsHistory /> : <Navigate to="/customer/login" replace />} />
 
             </Route>
         </Routes>
