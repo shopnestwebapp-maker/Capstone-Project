@@ -1,7 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
-import { StarIcon, HeartIcon, ShoppingCartIcon } from '@heroicons/react/24/solid';
+import {
+    StarIcon,
+    HeartIcon,
+    ShoppingCartIcon,
+    ArrowTrendingUpIcon,
+    ArrowTrendingDownIcon,
+    ArrowsRightLeftIcon
+} from '@heroicons/react/24/solid';
 
 export default function ProductPage() {
     const { id } = useParams();
@@ -52,6 +59,12 @@ export default function ProductPage() {
         return <div className="text-center py-8 text-red-600">{error}</div>;
     }
 
+    // Calculate discount percentage if applicable
+    let discount = null;
+    if (product?.base_price && product.price < product.base_price) {
+        discount = Math.round(((product.base_price - product.price) / product.base_price) * 100);
+    }
+
     return (
         <div className="container mx-auto px-4 py-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -80,7 +93,57 @@ export default function ProductPage() {
                         <span className="text-gray-600 ml-2">(24 reviews)</span>
                     </div>
 
-                    <p className="text-2xl font-bold text-blue-600 mb-4"> ₹{Number(product.price) || 0}</p>
+                    {/* Price + Comparison */}
+                    <div className="mb-4">
+                        <div className="flex items-baseline gap-3">
+                            <p className="text-2xl font-bold text-blue-600">
+                                ₹{Number(product.price) || 0}
+                            </p>
+
+                            {product.base_price && product.price < product.base_price && (
+                                <p className="text-lg text-gray-500 line-through">
+                                    ₹{product.base_price}
+                                </p>
+                            )}
+
+                            {discount && (
+                                <span className="text-sm font-semibold text-green-600 bg-green-100 px-2 py-1 rounded">
+                                    {discount}% OFF
+                                </span>
+                            )}
+                        </div>
+
+                        {product.base_price && (
+                            <div className="flex items-center gap-2 mt-1">
+                                {product.price > product.base_price && (
+                                    <>
+                                        <ArrowTrendingUpIcon className="h-5 w-5 text-red-600" />
+                                        <p className="text-sm text-red-600 font-medium">
+                                            Higher than base price (₹{product.base_price})
+                                        </p>
+                                    </>
+                                )}
+
+                                {product.price < product.base_price && (
+                                    <>
+                                        <ArrowTrendingDownIcon className="h-5 w-5 text-green-600" />
+                                        <p className="text-sm text-green-600 font-medium">
+                                            Lower than base price
+                                        </p>
+                                    </>
+                                )}
+
+                                {product.price === product.base_price && (
+                                    <>
+                                        <ArrowsRightLeftIcon className="h-5 w-5 text-gray-600" />
+                                        <p className="text-sm text-gray-600 font-medium">
+                                            Equal to base price (₹{product.base_price})
+                                        </p>
+                                    </>
+                                )}
+                            </div>
+                        )}
+                    </div>
 
                     <p className="text-gray-700 mb-6">{product.description}</p>
 
@@ -119,7 +182,6 @@ export default function ProductPage() {
                     <div className="mt-8 border-t border-gray-200 pt-6">
                         <h3 className="text-lg font-medium mb-2">Product Details</h3>
                         <ul className="list-disc pl-5 space-y-1 text-gray-600">
-                            {/* <li>Category: {product.ca}</li> */}
                             <li>Stock: {product.stock_quantity} available</li>
                             <li>Free shipping on orders over $50</li>
                             <li>30-day return policy</li>
