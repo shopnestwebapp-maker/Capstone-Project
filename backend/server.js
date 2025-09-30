@@ -1131,6 +1131,78 @@ app.post("/api/rewards/spin", isAuthenticated, async (req, res) => {
     }
 });
 
+app.get('/api/analytics/summary', isAuthenticated, async (req, res) => {
+    try {
+        const userId = req.user.id;
+
+        // 1. Total Spend
+        const [totalSpend] = await pool.query(
+            `SELECT IFNULL(SUM(final_amount),0) AS total_spend
+             FROM orders WHERE user_id = ?`,
+            [userId]
+        );
+
+        // 2. Monthly Spend (YYYY-MM)
+        const [monthlySpend] = await pool.query(
+            `SELECT DATE_FORMAT(created_at, '%Y-%m') AS month,
+                    CAST(SUM(final_amount) AS DECIMAL(10,2)) AS amount
+             FROM orders
+             WHERE user_id = ?
+             GROUP BY month
+             ORDER BY month ASC`,
+            [userId]
+        );
+
+        // 3. Top Categories (force numeric qty)
+        const [categories] = await pool.query(
+            `SELECT c.name AS category,
+                    CAST(SUM(oi.quantity) AS UNSIGNED) AS total_qty
+             FROM order_items oi
+             JOIN products p ON oi.product_id = p.id
+             JOIN categories c ON p.category_id = c.id
+             JOIN orders o ON oi.order_id = o.id
+             WHERE o.user_id = ?
+             GROUP BY c.name
+             ORDER BY total_qty DESC
+             LIMIT 5`,
+            [userId]
+        );
+
+        // 4. Savings (discounts + redeemed points)
+        const [discountSavings] = await pool.query(
+            `SELECT IFNULL(SUM(discount_amount),0) AS discount_savings
+             FROM orders WHERE user_id = ?`,
+            [userId]
+        );
+
+        const [redeemed] = await pool.query(
+            `SELECT IFNULL(SUM(points),0) AS redeemed_points
+             FROM reward_transactions
+             WHERE user_id = ? AND type = 'redeem'`,
+            [userId]
+        );
+
+        res.json({
+            totalSpend: Number(totalSpend[0].total_spend),
+            monthlySpend: monthlySpend.map(row => ({
+                month: row.month,
+                amount: Number(row.amount)
+            })),
+            topCategories: categories.map(row => ({
+                category: row.category,
+                total_qty: Number(row.total_qty)
+            })),
+            savings: {
+                discounts: Number(discountSavings[0].discount_savings),
+                redeemedPoints: Number(redeemed[0].redeemed_points)
+            }
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Error fetching analytics" });
+    }
+});
+
 
 
 

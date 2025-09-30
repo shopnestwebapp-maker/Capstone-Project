@@ -104,7 +104,7 @@ export default function RewardsDashboard() {
                     <p className="text-4xl font-black mt-2 mb-1">{tierInfo.currentTier.name} {tierInfo.currentTier.icon}</p>
                     {tierInfo.nextTier ? (
                         <p className="text-sm">
-                            You're just <span className="font-bold">{tierInfo.pointsToNextTier}</span> points away from **{tierInfo.nextTier.name}**!
+                            You're just <span className="font-bold">{tierInfo.pointsToNextTier}</span> points away from <b>{tierInfo.nextTier.name}</b>!
                         </p>
                     ) : (
                         <p className="text-sm font-semibold">
