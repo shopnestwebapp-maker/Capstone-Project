@@ -18,40 +18,26 @@ import 'react-toastify/dist/ReactToastify.css';
 // Status colors
 const getStatusColor = (status) => {
     switch (status) {
-        case 'pending':
-            return 'bg-yellow-100 text-yellow-800';
-        case 'processing':
-            return 'bg-blue-100 text-blue-800';
-        case 'shipped':
-            return 'bg-purple-100 text-purple-800';
-        case 'delivered':
-            return 'bg-green-100 text-green-800';
-        case 'cancelled':
-            return 'bg-red-100 text-red-800';
-        case 'returned':
-            return 'bg-orange-100 text-orange-800';
-        default:
-            return 'bg-gray-100 text-gray-800';
+        case 'pending': return 'bg-yellow-100 text-yellow-800';
+        case 'processing': return 'bg-blue-100 text-blue-800';
+        case 'shipped': return 'bg-purple-100 text-purple-800';
+        case 'delivered': return 'bg-green-100 text-green-800';
+        case 'cancelled': return 'bg-red-100 text-red-800';
+        case 'returned': return 'bg-orange-100 text-orange-800';
+        default: return 'bg-gray-100 text-gray-800';
     }
 };
 
 // Status icons
 const getStatusIcon = (status) => {
     switch (status) {
-        case 'pending':
-            return <ClockIcon className="h-5 w-5 text-yellow-500" />;
-        case 'processing':
-            return <CheckCircleIcon className="h-5 w-5 text-blue-500" />;
-        case 'shipped':
-            return <TruckIcon className="h-5 w-5 text-purple-500" />;
-        case 'delivered':
-            return <HomeIcon className="h-5 w-5 text-green-500" />;
-        case 'cancelled':
-            return <XCircleIcon className="h-5 w-5 text-red-500" />;
-        case 'returned':
-            return <ArrowUturnLeftIcon className="h-5 w-5 text-orange-500" />;
-        default:
-            return <ClockIcon className="h-5 w-5 text-gray-500" />;
+        case 'pending': return <ClockIcon className="h-5 w-5 text-yellow-500" />;
+        case 'processing': return <CheckCircleIcon className="h-5 w-5 text-blue-500" />;
+        case 'shipped': return <TruckIcon className="h-5 w-5 text-purple-500" />;
+        case 'delivered': return <HomeIcon className="h-5 w-5 text-green-500" />;
+        case 'cancelled': return <XCircleIcon className="h-5 w-5 text-red-500" />;
+        case 'returned': return <ArrowUturnLeftIcon className="h-5 w-5 text-orange-500" />;
+        default: return <ClockIcon className="h-5 w-5 text-gray-500" />;
     }
 };
 
@@ -63,7 +49,6 @@ export default function OrdersPage() {
     const [showModal, setShowModal] = useState(false);
     const [orderToCancel, setOrderToCancel] = useState(null);
     const [activeTab, setActiveTab] = useState('all');
-    // New state to track the expanded order
     const [expandedOrder, setExpandedOrder] = useState(null);
 
     useEffect(() => {
@@ -73,7 +58,7 @@ export default function OrdersPage() {
                 setOrders(res.data);
                 setFilteredOrders(res.data);
             } catch (err) {
-                setError('Failed to load orders. Please try again later.');
+                setError('Failed to load orders. Please try again later.',err);
             } finally {
                 setLoading(false);
             }
@@ -89,23 +74,18 @@ export default function OrdersPage() {
         }
     }, [activeTab, orders]);
 
-    const handleTabClick = (tab) => {
-        setActiveTab(tab);
-    };
+    const handleTabClick = (tab) => setActiveTab(tab);
 
     const handleCancelOrder = async () => {
         if (!orderToCancel) return;
-
         try {
             await axios.put(`/api/admin/orders/${orderToCancel.id}/status`, { status: 'cancelled' });
-
             setOrders(orders.map(order =>
                 order.id === orderToCancel.id ? { ...order, status: 'cancelled' } : order
             ));
-
             toast.success('Order cancelled successfully!');
         } catch (err) {
-            toast.error('Failed to cancel order. Please try again.');
+            toast.error('Failed to cancel order. Please try again.',err);
         } finally {
             setShowModal(false);
             setOrderToCancel(null);
@@ -114,24 +94,19 @@ export default function OrdersPage() {
 
     const handleReturnOrder = async (order) => {
         if (!order) return;
-
         try {
             await axios.put(`/api/admin/orders/${order.id}/status`, { status: 'returned' });
-
             setOrders(orders.map(o =>
                 o.id === order.id ? { ...o, status: 'returned' } : o
             ));
-
             toast.success('Order marked as returned successfully!');
         } catch (err) {
             toast.error(`Failed to return order. ${err.message || ''}`);
         }
     };
 
-    // Function to toggle expanded order details
-    const toggleOrderDetails = (orderId) => {
+    const toggleOrderDetails = (orderId) =>
         setExpandedOrder(expandedOrder === orderId ? null : orderId);
-    };
 
     if (loading) {
         return (
@@ -156,6 +131,7 @@ export default function OrdersPage() {
                 </div>
             )}
 
+            {/* Tabs */}
             <div className="border-b border-gray-200 mb-6">
                 <nav className="-mb-px flex flex-wrap space-x-4 sm:space-x-8" aria-label="Tabs">
                     {['all', 'pending', 'processing', 'shipped', 'delivered', 'cancelled', 'returned'].map((tab) => (
@@ -173,6 +149,7 @@ export default function OrdersPage() {
                 </nav>
             </div>
 
+            {/* Orders */}
             {filteredOrders.length === 0 ? (
                 <div className="text-center py-20 bg-gray-50 rounded-lg shadow-inner">
                     <ShoppingCartIcon className="mx-auto h-16 w-16 text-gray-400" />
@@ -231,20 +208,16 @@ export default function OrdersPage() {
                                 </div>
                             </div>
 
-                            {/* Expandable details section */}
+                            {/* Expandable details */}
                             {expandedOrder === order.id && (
                                 <div className="p-4 border-b border-gray-200 bg-gray-50">
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div>
                                             <p className="font-bold text-gray-700">Shipping Address</p>
-                                            {/* Assuming these properties exist in your order object */}
                                             <p className="text-sm text-gray-600">{order.shipping_address || 'Address not available'}</p>
-                                            <p className="text-sm text-gray-600">{order.city || 'City not available'}, {order.postal_code || 'Postal code not available'}</p>
-                                            <p className="text-sm text-gray-600">{order.country || 'Country not available'}</p>
                                         </div>
                                         <div>
                                             <p className="font-bold text-gray-700">Payment Details</p>
-                                            {/* Assuming payment_method exists */}
                                             <p className="text-sm text-gray-600">Payment Method: {order.payment_method || 'N/A'}</p>
                                         </div>
                                     </div>
@@ -291,8 +264,11 @@ export default function OrdersPage() {
                                     </span>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-sm text-gray-500">Total</p>
-                                    <p className="text-lg font-medium">₹{Number(order.total_amount).toFixed(2)}</p>
+                                    <p className="text-sm text-gray-500">Subtotal: ₹{Number(order.subtotal).toFixed(2)}</p>
+                                    {order.discount > 0 && (
+                                        <p className="text-sm text-green-600">Discount: -₹{Number(order.discount).toFixed(2)}</p>
+                                    )}
+                                    <p className="text-lg font-semibold">Total: ₹{Number(order.total).toFixed(2)}</p>
                                 </div>
                             </div>
                         </div>

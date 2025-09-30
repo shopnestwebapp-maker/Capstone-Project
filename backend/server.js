@@ -462,24 +462,95 @@ app.delete('/api/wishlist/remove/:productId', isAuthenticated, async (req, res) 
 });
 
 // Order Routes
-app.post('/api/orders/create', isAuthenticated, async (req, res) => {
-    // Extract data from the request body
-    const { name, email, address, city, state, zip, paymentMethod } = req.body;
+// app.post('/api/orders/create', isAuthenticated, async (req, res) => {
+//     // Extract data from the request body
+//     const { name, email, address, city, state, zip, paymentMethod } = req.body;
 
-    // Basic validation to ensure all required fields are present
+//     // Basic validation to ensure all required fields are present
+//     if (!name || !email || !address || !city || !state || !zip || !paymentMethod) {
+//         return res.status(400).json({ message: 'Missing required shipping or payment information' });
+//     }
+
+//     try {
+//         const [carts] = await pool.query('SELECT * FROM carts WHERE user_id = ?', [req.user.id]);
+//         if (carts.length === 0) {
+//             return res.status(400).json({ message: 'Cart is empty' });
+//         }
+
+//         const cartId = carts[0].id;
+//         const [cartItems] = await pool.query(`
+//             SELECT ci.*, p.price, p.stock_quantity
+//             FROM cart_items ci
+//             JOIN products p ON ci.product_id = p.id
+//             WHERE ci.cart_id = ?
+//         `, [cartId]);
+
+//         if (cartItems.length === 0) {
+//             return res.status(400).json({ message: 'Cart is empty' });
+//         }
+
+//         // Check if any product is out of stock
+//         for (const item of cartItems) {
+//             if (item.quantity > item.stock_quantity) {
+//                 return res.status(400).json({ message: `Insufficient stock for product: ${item.name}` });
+//             }
+//         }
+
+//         const totalAmount = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+//         // Start a transaction to ensure all database operations succeed or fail together
+//         await pool.query('START TRANSACTION');
+
+//         const [orderResult] = await pool.query(
+//             'INSERT INTO orders (user_id, total_amount, shipping_address, payment_method) VALUES (?, ?, ?, ?)',
+//             [req.user.id, totalAmount, `${name}, ${address}, ${city}, ${state} ${zip}`, paymentMethod]
+//         );
+//         const orderId = orderResult.insertId;
+
+//         for (const item of cartItems) {
+//             await pool.query(
+//                 'INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?, ?, ?, ?)',
+//                 [orderId, item.product_id, item.quantity, item.price]
+//             );
+
+//             // Decrease stock quantity
+//             await pool.query(
+//                 'UPDATE products SET stock_quantity = stock_quantity - ? WHERE id = ?',
+//                 [item.quantity, item.product_id]
+//             );
+//         }
+
+//         // Clear the user's cart
+//         await pool.query('DELETE FROM cart_items WHERE cart_id = ?', [cartId]);
+
+//         // Commit the transaction
+//         await pool.query('COMMIT');
+
+//         res.json({ message: 'Order created successfully', orderId });
+//     } catch (err) {
+//         // Rollback the transaction if any error occurs
+//         await pool.query('ROLLBACK');
+//         console.error('Error creating order:', err);
+//         res.status(500).json({ message: 'Error creating order' });
+//     }
+// });
+app.post('/api/orders/create', isAuthenticated, async (req, res) => {
+    const { name, email, address, city, state, zip, paymentMethod, redeemPoints = 0 } = req.body;
+
     if (!name || !email || !address || !city || !state || !zip || !paymentMethod) {
         return res.status(400).json({ message: 'Missing required shipping or payment information' });
     }
 
+    const conn = await pool.getConnection();
     try {
-        const [carts] = await pool.query('SELECT * FROM carts WHERE user_id = ?', [req.user.id]);
+        const [carts] = await conn.query('SELECT * FROM carts WHERE user_id = ?', [req.user.id]);
         if (carts.length === 0) {
             return res.status(400).json({ message: 'Cart is empty' });
         }
 
         const cartId = carts[0].id;
-        const [cartItems] = await pool.query(`
-            SELECT ci.*, p.price, p.stock_quantity
+        const [cartItems] = await conn.query(`
+            SELECT ci.*, p.price, p.stock_quantity, p.name
             FROM cart_items ci
             JOIN products p ON ci.product_id = p.id
             WHERE ci.cart_id = ?
@@ -489,71 +560,131 @@ app.post('/api/orders/create', isAuthenticated, async (req, res) => {
             return res.status(400).json({ message: 'Cart is empty' });
         }
 
-        // Check if any product is out of stock
+        // Check stock
         for (const item of cartItems) {
             if (item.quantity > item.stock_quantity) {
                 return res.status(400).json({ message: `Insufficient stock for product: ${item.name}` });
             }
         }
 
+        // Calculate totals
         const totalAmount = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        let discount = 0;
 
-        // Start a transaction to ensure all database operations succeed or fail together
-        await pool.query('START TRANSACTION');
+        await conn.query('START TRANSACTION');
 
-        const [orderResult] = await pool.query(
-            'INSERT INTO orders (user_id, total_amount, shipping_address, payment_method) VALUES (?, ?, ?, ?)',
-            [req.user.id, totalAmount, `${name}, ${address}, ${city}, ${state} ${zip}`, paymentMethod]
+        // 🔹 Check & apply redeem points
+        if (redeemPoints > 0) {
+            const [[reward]] = await conn.query("SELECT points FROM user_rewards WHERE user_id=?", [req.user.id]);
+
+            if (!reward || reward.points < redeemPoints) {
+                await conn.query("ROLLBACK");
+                return res.status(400).json({ message: "Not enough reward points" });
+            }
+
+            discount = redeemPoints; // 1 point = ₹1
+            await conn.query("UPDATE user_rewards SET points = points - ? WHERE user_id=?", [redeemPoints, req.user.id]);
+            await conn.query(
+                "INSERT INTO reward_transactions (user_id, points, type, description) VALUES (?, ?, 'redeem', 'Redeemed at checkout')",
+                [req.user.id, -redeemPoints]
+            );
+        }
+
+        const finalAmount = Math.max(totalAmount - discount, 0);
+
+        // Insert order
+        const [orderResult] = await conn.query(
+            'INSERT INTO orders (user_id, total_amount, discount_amount, final_amount, shipping_address, payment_method) VALUES (?, ?, ?, ?, ?, ?)',
+            [req.user.id, totalAmount, discount, finalAmount, `${name}, ${address}, ${city}, ${state} ${zip}`, paymentMethod]
         );
         const orderId = orderResult.insertId;
 
+        // Insert order items + update stock
         for (const item of cartItems) {
-            await pool.query(
+            await conn.query(
                 'INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?, ?, ?, ?)',
                 [orderId, item.product_id, item.quantity, item.price]
             );
-
-            // Decrease stock quantity
-            await pool.query(
+            await conn.query(
                 'UPDATE products SET stock_quantity = stock_quantity - ? WHERE id = ?',
                 [item.quantity, item.product_id]
             );
         }
 
-        // Clear the user's cart
-        await pool.query('DELETE FROM cart_items WHERE cart_id = ?', [cartId]);
+        // Clear cart
+        await conn.query('DELETE FROM cart_items WHERE cart_id = ?', [cartId]);
 
-        // Commit the transaction
-        await pool.query('COMMIT');
+        // 🔹 Auto-credit points (10% rule)
+        const earnedPoints = Math.floor(finalAmount * 0.1);
+        if (earnedPoints > 0) {
+            await conn.query(
+                `INSERT INTO user_rewards (user_id, points)
+                 VALUES (?, ?)
+                 ON DUPLICATE KEY UPDATE points = points + VALUES(points)`,
+                [req.user.id, earnedPoints]
+            );
 
-        res.json({ message: 'Order created successfully', orderId });
+            await conn.query(
+                "INSERT INTO reward_transactions (user_id, points, type, description) VALUES (?, ?, 'earn', 'Points from order')",
+                [req.user.id, earnedPoints]
+            );
+        }
+
+        await conn.query('COMMIT');
+
+        res.json({
+            message: 'Order created successfully',
+            orderId,
+            earnedPoints,
+            discount,
+            finalAmount
+        });
     } catch (err) {
-        // Rollback the transaction if any error occurs
-        await pool.query('ROLLBACK');
+        await conn.query('ROLLBACK');
         console.error('Error creating order:', err);
         res.status(500).json({ message: 'Error creating order' });
+    } finally {
+        conn.release();
     }
 });
 
 app.get('/api/orders', isAuthenticated, async (req, res) => {
     try {
-        const [orders] = await pool.query('SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC', [req.user.id]);
+        const [orders] = await pool.query(
+            `SELECT id, user_id, total_amount, discount_amount, final_amount, status, shipping_address, payment_method, created_at, processing_at, shipped_at, delivered_at
+             FROM orders
+             WHERE user_id = ?
+             ORDER BY created_at DESC`,
+            [req.user.id]
+        );
 
-        const ordersWithItems = await Promise.all(orders.map(async order => {
-            const [items] = await pool.query(`
-        SELECT oi.*, p.name, p.image_url 
-        FROM order_items oi
-        JOIN products p ON oi.product_id = p.id
-        WHERE oi.order_id = ?
-      `, [order.id]);
-            return { ...order, items };
-        }));
+        const ordersWithItems = await Promise.all(
+            orders.map(async order => {
+                const [items] = await pool.query(
+                    `SELECT oi.id, oi.product_id, oi.quantity, oi.price, p.name, p.image_url 
+                     FROM order_items oi
+                     JOIN products p ON oi.product_id = p.id
+                     WHERE oi.order_id = ?`,
+                    [order.id]
+                );
+
+                return {
+                    ...order,
+                    subtotal: Number(order.total_amount), // before discount
+                    discount: Number(order.discount_amount),
+                    total: Number(order.final_amount), // after discount / redeemed points
+                    items
+                };
+            })
+        );
 
         res.json(ordersWithItems);
     } catch (err) {
+        console.error('Error fetching orders:', err);
         res.status(500).json({ message: 'Error fetching orders' });
     }
 });
+
 app.delete('/api/orders/:orderId', isAuthenticated, async (req, res) => {
     const { orderId } = req.params;
     const userId = req.user.id;
@@ -893,38 +1024,114 @@ app.post("/api/rewards/redeem", isAuthenticated, async (req, res) => {
 });
 
 // Spin-the-wheel
+// app.post("/api/rewards/spin", isAuthenticated, async (req, res) => {
+//     try {
+//         // Check if user has spun today
+//         const [[lastSpin]] = await pool.query(
+//             "SELECT created_at FROM spin_rewards WHERE user_id=? ORDER BY created_at DESC LIMIT 1",
+//             [req.user.id]
+//         );
+
+//         if (lastSpin && new Date(lastSpin.created_at).toDateString() === new Date().toDateString()) {
+//             return res.status(400).json({ message: "You already used your daily spin!" });
+//         }
+
+//         // Define reward pool
+//         const rewards = [
+//             { type: "points", value: 10 },
+//             { type: "points", value: 50 },
+//             { type: "discount", value: "10%" },
+//             { type: "free_item", value: "Coffee Mug" },
+//             { type: "points", value: 100 }
+//         ];
+
+//         // Randomly select a reward
+//         const reward = rewards[Math.floor(Math.random() * rewards.length)];
+
+//         // Insert spin reward into the database
+//         await pool.query(
+//             "INSERT INTO spin_rewards (user_id, reward_type, reward_value) VALUES (?, ?, ?)",
+//             [req.user.id, reward.type, reward.value]
+//         );
+
+//         // Handle points reward
+//         if (reward.type === "points") {
+//             await pool.query(
+//                 `INSERT INTO user_rewards (user_id, points)
+//                 VALUES (?, ?)
+//                 ON DUPLICATE KEY UPDATE points = points + VALUES(points)`,
+//                 [req.user.id, reward.value]
+//             );
+
+//             await pool.query(
+//                 `INSERT INTO reward_transactions (user_id, points, type, description)
+//                 VALUES (?, ?, 'bonus', 'Spin-the-Wheel reward')`,
+//                 [req.user.id, reward.value]
+//             );
+//         }
+
+//         // Send response with the reward
+//         res.json({ reward });
+
+//     } catch (err) {
+//         console.error("Error occurred:", err);
+//         return res.status(500).json({ message: "Something went wrong, please try again later." });
+//     }
+// });
 app.post("/api/rewards/spin", isAuthenticated, async (req, res) => {
-    const rewards = [
-        { type: "points", value: 10 },
-        { type: "points", value: 50 },
-        { type: "discount", value: "10%" },
-        { type: "free_item", value: "Coffee Mug" },
-        { type: "points", value: 100 }
-    ];
-    const reward = rewards[Math.floor(Math.random() * rewards.length)];
-
-    await pool.query(
-        "INSERT INTO spin_rewards (user_id, reward_type, reward_value) VALUES (?, ?, ?)",
-        [req.user.id, reward.type, reward.value]
-    );
-
-    if (reward.type === "points") {
-        await pool.query(
-            `INSERT INTO user_rewards (user_id, points)
-       VALUES (?, ?)
-       ON DUPLICATE KEY UPDATE points = points + VALUES(points)`,
-            [req.user.id, reward.value]
+    try {
+        // Check daily spin limit
+        const [[lastSpin]] = await pool.query(
+            "SELECT created_at FROM spin_rewards WHERE user_id=? ORDER BY created_at DESC LIMIT 1",
+            [req.user.id]
         );
 
+        if (lastSpin && new Date(lastSpin.created_at).toDateString() === new Date().toDateString()) {
+            return res.status(400).json({ message: "You already used your daily spin!" });
+        }
+
+        // Reward pool (only points + better luck option)
+        const rewards = [
+            { type: "points", value: 10 },
+            { type: "points", value: 20 },
+            { type: "points", value: 50 },
+            { type: "none", value: 0 } // 🎯 Better luck next time
+        ];
+
+        // Random reward
+        const reward = rewards[Math.floor(Math.random() * rewards.length)];
+
+        // Save spin result
         await pool.query(
-            `INSERT INTO reward_transactions (user_id, points, type, description)
-       VALUES (?, ?, 'bonus', 'Spin-the-Wheel reward')`,
-            [req.user.id, reward.value]
+            "INSERT INTO spin_rewards (user_id, reward_type, reward_value) VALUES (?, ?, ?)",
+            [req.user.id, reward.type, reward.value]
         );
+
+        // If points, add to user account
+        if (reward.type === "points") {
+            await pool.query(
+                `INSERT INTO user_rewards (user_id, points)
+                VALUES (?, ?)
+                ON DUPLICATE KEY UPDATE points = points + VALUES(points)`,
+                [req.user.id, reward.value]
+            );
+
+            await pool.query(
+                `INSERT INTO reward_transactions (user_id, points, type, description)
+                VALUES (?, ?, 'bonus', 'Spin-the-Wheel reward')`,
+                [req.user.id, reward.value]
+            );
+        }
+
+        res.json({ reward });
+
+    } catch (err) {
+        console.error("Spin error:", err);
+        return res.status(500).json({ message: "Something went wrong, please try again later." });
     }
-
-    res.json({ reward });
 });
+
+
 
 
 // Start server
