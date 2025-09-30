@@ -7,6 +7,7 @@ import bcrypt from 'bcryptjs';
 import mysql from 'mysql2/promise';
 import cors from 'cors';
 import bodyParser from 'body-parser';
+import cron from 'node-cron';
 
 dotenv.config();
 const app = express();
@@ -286,7 +287,7 @@ app.put("/api/products/:id", async (req, res) => {
     try {
         const [result] = await pool.query(
             `UPDATE products 
-       SET name = ?, description = ?, price = ?, category_id = ?, image_url = ?, stock_quantity = ?
+       SET name = ?, description = ?, base_price = ?, category_id = ?, image_url = ?, stock_quantity = ?
        WHERE id = ?`,
             [name, description, price, category_id, image_url, stock_quantity, id]
         );
@@ -1203,8 +1204,186 @@ app.get('/api/analytics/summary', isAuthenticated, async (req, res) => {
     }
 });
 
+app.post('/api/price-alerts', isAuthenticated, async (req, res) => {
+    const { product_id, target_price } = req.body;
+    const user_id = req.user.id;
+
+    if (!product_id || !target_price) {
+        return res.status(400).json({ message: 'Product ID and target price are required' });
+    }
+
+    try {
+        // Check if alert already exists
+        const [[existing]] = await pool.query(
+            'SELECT * FROM price_alerts WHERE user_id = ? AND product_id = ?',
+            [user_id, product_id]
+        );
+
+        if (existing) {
+            return res.status(400).json({ message: 'Price alert already exists for this product' });
+        }
+
+        // Insert new alert
+        await pool.query(
+            'INSERT INTO price_alerts (user_id, product_id, target_price) VALUES (?, ?, ?)',
+            [user_id, product_id, target_price]
+        );
+
+        res.status(201).json({ message: 'Price alert set successfully' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+app.get('/api/price-alerts', isAuthenticated, async (req, res) => {
+    try {
+        const userId = req.user.id; // assuming you have user ID in req.user
 
 
+        const [alerts] = await pool.query(
+            `SELECT pa.id, pa.product_id, pa.target_price, pa.notified, pa.created_at, 
+                    p.name, p.price AS current_price, p.image_url
+             FROM price_alerts pa
+             JOIN products p ON pa.product_id = p.id
+             WHERE pa.user_id = ?`,
+            [userId]
+        );
+
+
+        res.json(alerts); // send array of alerts
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Failed to fetch price alerts' });
+    }
+});
+app.put('/api/price-alerts/:id', isAuthenticated, async (req, res) => {
+    const alertId = req.params.id;
+    const { target_price } = req.body;
+
+    if (!target_price) {
+        return res.status(400).json({ message: 'Target price is required' });
+    }
+
+    try {
+        const [result] = await pool.query(
+            'UPDATE price_alerts SET target_price = ? WHERE id = ?',
+            [target_price, alertId]
+        );
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: 'Price alert not found' });
+        }
+
+        // Return updated alert
+        const [rows] = await pool.query('SELECT * FROM price_alerts WHERE id = ?', [alertId]);
+        res.json(rows[0]);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+app.delete('/api/price-alerts/:id', async (req, res) => {
+    const alertId = req.params.id;
+
+    try {
+        const [result] = await pool.query(
+            'DELETE FROM price_alerts WHERE id = ?',
+            [alertId]
+        );
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: 'Price alert not found' });
+        }
+
+        res.json({ message: 'Price alert deleted successfully' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+
+
+// Function to send notification (console/email)
+const sendNotification = async (email, productName, currentPrice, targetPrice) => {
+    console.log(`ALERT: ${email} - ${productName} price dropped to ₹${currentPrice} (target was ₹${targetPrice})`);
+
+    // Optional: Use nodemailer to send real emails
+    /*
+    const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
+    });
+
+    await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: email,
+        subject: `Price Alert: ${productName}`,
+        text: `The price of ${productName} dropped to ₹${currentPrice}. Your target price was ₹${targetPrice}.`
+    });
+    */
+};
+
+// Function to check price alerts for a product
+const checkPriceAlerts = async (productId) => {
+    try {
+        const [productRows] = await pool.query('SELECT price, name FROM products WHERE id = ?', [productId]);
+        const product = productRows[0];
+        if (!product) return;
+
+        const [alerts] = await pool.query(`
+            SELECT pa.id, pa.user_id, pa.target_price, u.email
+            FROM price_alerts pa
+            JOIN users u ON pa.user_id = u.id
+            WHERE pa.product_id = ? AND pa.notified = 0
+        `, [productId]);
+
+        for (let alert of alerts) {
+            if (product.price <= alert.target_price) {
+                await sendNotification(alert.email, product.name, product.price, alert.target_price);
+                await pool.query('UPDATE price_alerts SET notified = 1 WHERE id = ?', [alert.id]);
+            }
+        }
+    } catch (err) {
+        console.error('Error checking price alerts:', err);
+    }
+};
+
+// Cron job: runs every minute
+cron.schedule('0 0 */12 * * *', async () => {
+    try {
+        const [products] = await pool.query('SELECT id, price, base_price FROM products');
+
+        for (let product of products) {
+            const basePrice = product.base_price;
+
+            const randomFactor = Math.random();
+            let changePercent;
+
+            // 30% chance for a small increase (profit), 70% chance for a decrease (sale)
+            if (randomFactor < 0.3) {
+                // Increase between 0% to +2%
+                changePercent = Math.random() * 0.02; // 0 to 0.02
+            } else {
+                // Decrease between -5% to 0%
+                changePercent = -(Math.random() * 0.10); // -0.05 to 0
+            }
+
+            // Calculate new price from base_price
+            const newPrice = Math.max(1, +(basePrice * (1 + changePercent)).toFixed(2));
+            // Update product price
+            await pool.query('UPDATE products SET price = ? WHERE id = ?', [newPrice, product.id]);
+
+            // Check price alerts for this product
+            await checkPriceAlerts(product.id);
+        }
+
+        console.log('Prices updated and alerts checked successfully');
+    } catch (err) {
+        console.error('Error updating prices:', err);
+    }
+});
 
 // Start server
 const PORT = process.env.PORT || 5000;
