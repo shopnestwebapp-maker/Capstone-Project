@@ -828,9 +828,107 @@ app.put('/api/admin/orders/:id/status', isAdmin, async (req, res) => {
     }
 });
 
+app.get("/api/rewards/", isAuthenticated, async (req, res) => {
+    const [[reward]] = await pool.query(
+        "SELECT points FROM user_rewards WHERE user_id = ?",
+        [req.user.id]
+    );
+    res.json({ points: reward?.points || 0 });
+});
+
+// Get reward history
+app.get("/api/rewards/history", isAuthenticated, async (req, res) => {
+    const [rows] = await pool.query(
+        "SELECT * FROM reward_transactions WHERE user_id = ? ORDER BY created_at DESC",
+        [req.user.id]
+    );
+    res.json(rows);
+});
+
+// Earn points (after purchase etc.)
+app.post("/api/rewards/earn", isAuthenticated, async (req, res) => {
+    const { points, description } = req.body;
+
+    await pool.query(
+        `INSERT INTO user_rewards (user_id, points)
+     VALUES (?, ?)
+     ON DUPLICATE KEY UPDATE points = points + VALUES(points)`,
+        [req.user.id, points]
+    );
+
+    await pool.query(
+        `INSERT INTO reward_transactions (user_id, points, type, description)
+     VALUES (?, ?, 'earn', ?)`,
+        [req.user.id, points, description || "Points earned"]
+    );
+
+    res.json({ message: "Points added successfully!" });
+});
+
+// Redeem points
+app.post("/api/rewards/redeem", isAuthenticated, async (req, res) => {
+    const { points, description } = req.body;
+
+    const [[reward]] = await pool.query(
+        "SELECT points FROM user_rewards WHERE user_id = ?",
+        [req.user.id]
+    );
+
+    if (!reward || reward.points < points) {
+        return res.status(400).json({ message: "Not enough points" });
+    }
+
+    await pool.query(
+        "UPDATE user_rewards SET points = points - ? WHERE user_id = ?",
+        [points, req.user.id]
+    );
+
+    await pool.query(
+        `INSERT INTO reward_transactions (user_id, points, type, description)
+     VALUES (?, ?, 'redeem', ?)`,
+        [req.user.id, -points, description || "Redeemed points"]
+    );
+
+    res.json({ message: "Points redeemed!" });
+});
+
+// Spin-the-wheel
+app.post("/api/rewards/spin", isAuthenticated, async (req, res) => {
+    const rewards = [
+        { type: "points", value: 10 },
+        { type: "points", value: 50 },
+        { type: "discount", value: "10%" },
+        { type: "free_item", value: "Coffee Mug" },
+        { type: "points", value: 100 }
+    ];
+    const reward = rewards[Math.floor(Math.random() * rewards.length)];
+
+    await pool.query(
+        "INSERT INTO spin_rewards (user_id, reward_type, reward_value) VALUES (?, ?, ?)",
+        [req.user.id, reward.type, reward.value]
+    );
+
+    if (reward.type === "points") {
+        await pool.query(
+            `INSERT INTO user_rewards (user_id, points)
+       VALUES (?, ?)
+       ON DUPLICATE KEY UPDATE points = points + VALUES(points)`,
+            [req.user.id, reward.value]
+        );
+
+        await pool.query(
+            `INSERT INTO reward_transactions (user_id, points, type, description)
+       VALUES (?, ?, 'bonus', 'Spin-the-Wheel reward')`,
+            [req.user.id, reward.value]
+        );
+    }
+
+    res.json({ reward });
+});
+
 
 // Start server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+    console.log(`Server running on port ${PORT}`)
 });
