@@ -191,6 +191,11 @@ export default function WishlistPage() {
                         Alert set for ₹{alert.target_price}
                     </div>
                 )}
+                {alert && product.price <= alert.target_price && (
+                    <div className="p-2 text-sm text-white bg-green-600 rounded-md mt-2">
+                        Good news! Current price ₹{product.price} has reached your alert price ₹{alert.target_price}.
+                    </div>
+                )}
             </div>
         );
     };

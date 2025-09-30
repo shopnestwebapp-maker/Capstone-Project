@@ -74,6 +74,22 @@ export default function EditProduct() {
                         </div>
                         <div>
                             <label htmlFor="price" className="block text-sm font-medium text-gray-700">
+                               Base Price
+                            </label>
+                            <input
+                                type="number"
+                                id="base_price"
+                                name="base_price"
+                                value={product.base_price || ""}
+                                onChange={handleChange}
+                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                required
+                                step="0.01"
+                                min="0"
+                            />
+                        </div>
+                        <div>
+                            <label htmlFor="price" className="block text-sm font-medium text-gray-700">
                                 Price
                             </label>
                             <input

@@ -282,14 +282,14 @@ app.delete('/api/products/:id', async (req, res) => {
 
 app.put("/api/products/:id", async (req, res) => {
     const { id } = req.params;
-    const { name, description, price, category_id, image_url, stock_quantity } = req.body;
+    const { name, description, price, base_price, category_id, image_url, stock_quantity } = req.body;
 
     try {
         const [result] = await pool.query(
             `UPDATE products 
-       SET name = ?, description = ?, base_price = ?, category_id = ?, image_url = ?, stock_quantity = ?
+       SET name = ?, description = ?,price=?, base_price = ?, category_id = ?, image_url = ?, stock_quantity = ?
        WHERE id = ?`,
-            [name, description, price, category_id, image_url, stock_quantity, id]
+            [name, description, price, base_price, category_id, image_url, stock_quantity, id]
         );
 
         if (result.affectedRows === 0) {
@@ -823,8 +823,8 @@ app.post('/api/admin/products', isAdmin, async (req, res) => {
     try {
         const { name, description, price, category_id, image_url, stock_quantity } = req.body;
         const [result] = await pool.query(
-            'INSERT INTO products (name, description, price, category_id, image_url, stock_quantity) VALUES (?, ?, ?, ?, ?, ?)',
-            [name, description, price, category_id, image_url, stock_quantity]
+            'INSERT INTO products (name, description, price, base_price, category_id, image_url, stock_quantity) VALUES (?, ?, ?,?, ?, ?, ?)',
+            [name, description, price, price, category_id, image_url, stock_quantity]
         );
         res.status(201).json({
             id: result.insertId,
