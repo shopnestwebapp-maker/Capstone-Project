@@ -1,5 +1,12 @@
 import { Link } from 'react-router-dom';
-import { ShoppingCartIcon, HeartIcon, Bars3Icon, XMarkIcon, MagnifyingGlassIcon, UserCircleIcon } from '@heroicons/react/24/outline';
+import {
+    ShoppingCartIcon,
+    HeartIcon,
+    Bars3Icon,
+    XMarkIcon,
+    MagnifyingGlassIcon,
+    UserCircleIcon
+} from '@heroicons/react/24/outline';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import Fuse from 'fuse.js';
@@ -10,10 +17,10 @@ export default function Navbar({ user, onLogout }) {
     const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [searchResults, setSearchResults] = useState([]);
-    const [allProducts, setAllProducts] = useState([]);
+    const [allItems, setAllItems] = useState([]); // products + categories
 
-    // Initialize Fuse instance
-    const fuse = new Fuse(allProducts, {
+    // Initialize Fuse.js
+    const fuse = new Fuse(allItems, {
         keys: [
             { name: 'name', weight: 0.7 },
             { name: 'category', weight: 0.3 }
@@ -22,22 +29,33 @@ export default function Navbar({ user, onLogout }) {
         includeScore: true,
     });
 
-    // Fetch all products from backend
+    // Fetch products + categories
     useEffect(() => {
-        const fetchProducts = async () => {
+        const fetchData = async () => {
             try {
-                const res = await axios.get('/api/productss');
-                // Ensure category name exists
-                const productsWithCategory = res.data.map(p => ({
+                const [productsRes, categoriesRes] = await Promise.all([
+                    axios.get('/api/productss'),
+                    axios.get('/api/categories')
+                ]);
+
+                const products = productsRes.data.map(p => ({
                     ...p,
-                    category: p.category_name || '', // Backend should provide category_name
+                    type: 'product',
+                    category: p.category_name || ''
                 }));
-                setAllProducts(productsWithCategory);
+
+                const categories = categoriesRes.data.map(c => ({
+                    id: `cat-${c.id}`, // prefix to avoid clashes
+                    name: c.name,
+                    type: 'category'
+                }));
+
+                setAllItems([...products, ...categories]);
             } catch (err) {
-                console.error('Error fetching products:', err);
+                console.error('Error fetching products or categories:', err);
             }
         };
-        fetchProducts();
+        fetchData();
     }, []);
 
     // Fetch cart count
@@ -55,7 +73,7 @@ export default function Navbar({ user, onLogout }) {
         }
     }, [user]);
 
-    // Search handler with fuzzy search
+    // Search handler
     const handleSearchChange = (e) => {
         const query = e.target.value;
         setSearchTerm(query);
@@ -87,12 +105,32 @@ export default function Navbar({ user, onLogout }) {
         if (isMobileMenuOpen) setIsMobileMenuOpen(false);
     };
 
+    // Render search results
+    const renderSearchResults = () => (
+        <ul className="absolute left-0 mt-2 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto z-50">
+            {searchResults.map(item => (
+                <li key={item.id}>
+                    <Link
+                        to={
+                            item.type === 'product'
+                                ? `/customer/products/${item.id}`
+                                : `/customer/categories/${item.id.replace('cat-', '')}`
+                        }
+                        className="block px-4 py-2 text-gray-800 hover:bg-gray-100 transition-colors duration-200"
+                        onClick={() => { setSearchTerm(''); setSearchResults([]); }}
+                    >
+                        {item.type === 'product' ? `🛒 ${item.name}` : `📂 ${item.name} in categories`}
+                    </Link>
+                </li>
+            ))}
+        </ul>
+    );
+
     return (
         <nav className="bg-white shadow-lg sticky top-0 z-50">
             <div className="container mx-auto px-4 py-3">
                 <div className="flex justify-between items-center">
-
-                    {/* Left side: Logo and Main Links */}
+                    {/* Left side: Logo + Main Links */}
                     <div className="flex items-center space-x-6 lg:space-x-12">
                         <Link to="/customer" className="text-2xl font-bold text-blue-600 font-display min-w-max">ShopNest</Link>
                         <div className="hidden md:flex items-center space-x-6">
@@ -101,51 +139,39 @@ export default function Navbar({ user, onLogout }) {
                         </div>
                     </div>
 
-                    {/* Middle: Desktop Search Bar */}
+                    {/* Middle: Desktop Search */}
                     <div className="flex-grow max-w-xl mx-4 hidden lg:block">
                         <form onSubmit={handleSearch} className="relative">
                             <input
                                 type="text"
-                                placeholder="Search for products..."
+                                placeholder="Search for products or categories..."
                                 value={searchTerm}
                                 onChange={handleSearchChange}
                                 className="w-full pl-4 pr-12 py-2 rounded-full bg-gray-100 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
                             />
-                            <button type="submit" className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-blue-600 transition-colors duration-200">
+                            <button type="submit" className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-blue-600">
                                 <MagnifyingGlassIcon className="h-5 w-5" />
                             </button>
 
-                            {/* Desktop Search Results */}
-                            {searchTerm.length > 0 && searchResults.length > 0 && (
-                                <ul className="absolute left-0 mt-2 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto z-50">
-                                    {searchResults.map(product => (
-                                        <li key={product.id}>
-                                            <Link
-                                                to={`/customer/products/${product.id}`}
-                                                className="block px-4 py-2 text-gray-800 hover:bg-gray-100 transition-colors duration-200"
-                                                onClick={() => { setSearchTerm(''); setSearchResults([]); }}
-                                            >
-                                                {product.name}
-                                            </Link>
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
+                            {searchTerm.length > 0 && searchResults.length > 0 && renderSearchResults()}
                         </form>
                     </div>
 
-                    {/* Right side: Icons and User Auth */}
+                    {/* Right side: Icons + Auth */}
                     <div className="flex items-center space-x-2 md:space-x-4">
+                        {/* Mobile search toggle */}
                         <div className="lg:hidden">
                             <button onClick={toggleMobileSearch} className="p-2 text-gray-700 hover:text-blue-600">
                                 <MagnifyingGlassIcon className="h-6 w-6" />
                             </button>
                         </div>
 
+                        {/* Wishlist */}
                         <Link to="/customer/wishlist" className="p-2 text-gray-700 hover:text-blue-600 relative transition-colors duration-200">
                             <HeartIcon className="h-6 w-6" />
                         </Link>
 
+                        {/* Cart */}
                         <Link to="/customer/cart" className="p-2 text-gray-700 hover:text-blue-600 relative transition-colors duration-200">
                             <ShoppingCartIcon className="h-6 w-6" />
                             {cartCount > 0 && (
@@ -153,6 +179,7 @@ export default function Navbar({ user, onLogout }) {
                             )}
                         </Link>
 
+                        {/* User Menu */}
                         {user ? (
                             <div className="relative group hidden md:block">
                                 <button className="flex items-center space-x-2 focus:outline-none p-2 rounded-full hover:bg-gray-100 transition-colors duration-200">
@@ -169,6 +196,7 @@ export default function Navbar({ user, onLogout }) {
                             <Link to="/customer/login" className="hidden md:block text-gray-700 hover:text-blue-600 font-medium transition-colors duration-200 p-2 rounded-md hover:bg-gray-100">Login</Link>
                         )}
 
+                        {/* Mobile menu toggle */}
                         <div className="md:hidden">
                             <button onClick={toggleMobileMenu} className="p-2 text-gray-700 hover:text-blue-600 focus:outline-none">
                                 {isMobileMenuOpen ? <XMarkIcon className="h-6 w-6" /> : <Bars3Icon className="h-6 w-6" />}
@@ -178,13 +206,13 @@ export default function Navbar({ user, onLogout }) {
                 </div>
             </div>
 
-            {/* Mobile Search Bar */}
-            <div className={`lg:hidden ${isMobileSearchOpen ? 'block' : 'hidden'} bg-gray-50 border-t border-gray-200 py-4 transition-all duration-300 ease-in-out`}>
+            {/* Mobile Search */}
+            <div className={`lg:hidden ${isMobileSearchOpen ? 'block' : 'hidden'} bg-gray-50 border-t border-gray-200 py-4`}>
                 <div className="w-full px-4">
                     <form onSubmit={handleSearch} className="relative">
                         <input
                             type="text"
-                            placeholder="Search for products..."
+                            placeholder="Search for products or categories..."
                             value={searchTerm}
                             onChange={handleSearchChange}
                             className="w-full pl-4 pr-10 py-2 rounded-full bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -193,27 +221,13 @@ export default function Navbar({ user, onLogout }) {
                             <MagnifyingGlassIcon className="h-5 w-5" />
                         </button>
 
-                        {searchTerm.length > 0 && searchResults.length > 0 && (
-                            <ul className="absolute left-0 mt-2 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto z-50">
-                                {searchResults.map(product => (
-                                    <li key={product.id}>
-                                        <Link
-                                            to={`/customer/products/${product.id}`}
-                                            className="block px-4 py-2 text-gray-800 hover:bg-gray-100 transition-colors duration-200"
-                                            onClick={() => { setSearchTerm(''); setSearchResults([]); }}
-                                        >
-                                            {product.name}
-                                        </Link>
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
+                        {searchTerm.length > 0 && searchResults.length > 0 && renderSearchResults()}
                     </form>
                 </div>
             </div>
 
             {/* Mobile Menu */}
-            <div className={`md:hidden ${isMobileMenuOpen ? 'block' : 'hidden'} bg-gray-50 border-t border-gray-200 py-4 transition-all duration-300 ease-in-out`}>
+            <div className={`md:hidden ${isMobileMenuOpen ? 'block' : 'hidden'} bg-gray-50 border-t border-gray-200 py-4`}>
                 <div className="flex flex-col items-center space-y-4">
                     <Link to="/" className="text-gray-700 hover:text-blue-600 transition-colors duration-200" onClick={toggleMobileMenu}>Home</Link>
                     <Link to="/customer/categories" className="text-gray-700 hover:text-blue-600 transition-colors duration-200" onClick={toggleMobileMenu}>Categories</Link>
