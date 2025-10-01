@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import StatsCard from '../../components/admin/StatsCard';
+import StatsCard from '../../../components/admin/StatsCard';
 import { ChartBarIcon, ShoppingBagIcon, UsersIcon, CurrencyDollarIcon } from '@heroicons/react/24/outline';
 
 export default function Dashboard() {

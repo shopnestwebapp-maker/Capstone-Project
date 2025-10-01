@@ -27,14 +27,14 @@
 // }
 import { Routes, Route, Navigate } from 'react-router-dom';
 import AdminLayout from '../components/admin/AdminLayout';
-import AdminLogin from '../pages/admin/AdminLogin';
-import Dashboard from '../pages/admin/Dashboard';
-import Categories from '../pages/admin/Categories';
-import Products from '../pages/admin/Products';
-import Users from '../pages/admin/Users';
-import Orders from '../pages/admin/Orders';
-import EditProduct from "../pages/admin/EditProduct";
-import EditCategory from "../pages/admin/EditCategory";
+import AdminLogin from '../pages/admin/Auth/AdminLogin';
+import Dashboard from '../pages/admin/Dashboard/Dashboard';
+import Categories from '../pages/admin/Category/Categories';
+import Products from '../pages/admin/Products/Products';
+import Users from '../pages/admin/Users/Users';
+import Orders from '../pages/admin/Orders/Orders';
+import EditProduct from "../pages/admin/Products/EditProduct";
+import EditCategory from "../pages/admin/Category/EditCategory";
 
 
 
