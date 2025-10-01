@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import CategoryCard from '../../components/customer/CategoryCard';
+import CategoryCard from '../../../components/customer/CategoryCard';
 
 export default function LandingPage() {
     const [categories, setCategories] = useState([]);
@@ -14,7 +14,7 @@ export default function LandingPage() {
                 const categoriesRes = await axios.get('/api/categories');
                 setCategories(categoriesRes.data);
 
-               
+
                 setLoading(false);
             } catch (err) {
                 console.error("Error fetching data:", err);

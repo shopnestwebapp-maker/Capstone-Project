@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
-import ProductCard from '../../components/customer/ProductCard';
-import FilterSidebar from '../../components/customer/FilterSidebar';
-import SkeletonCard from '../../components/customer/SkeletonCard';
+import ProductCard from '../../../components/customer/ProductCard';
+import FilterSidebar from '../../../components/customer/FilterSidebar';
+import SkeletonCard from '../../../components/customer/SkeletonCard';
 import { FiFilter, FiChevronDown } from 'react-icons/fi';
 
 export default function ProductsPage() {

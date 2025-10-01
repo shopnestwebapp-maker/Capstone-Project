@@ -1,7 +1,7 @@
 // src/pages/customer/RegisterPage.jsx
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../../context/AuthContext';
 
 export default function RegisterPage() {
     const [formData, setFormData] = useState({

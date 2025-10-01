@@ -272,21 +272,21 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Layout from '../components/customer/Layout';
 import HomePage from '../pages/customer/HomePage';
-import ProductsPages from '../pages/customer/ProdA';
-import LoginPage from '../pages/customer/LoginPage';
-import RegisterPage from '../pages/customer/RegisterPage';
-import ProductPage from '../pages/customer/ProductPage';
-import CategoryPage from '../pages/customer/CategoryPage';
-import CartPage from '../pages/customer/CartPage';
-import CheckoutPage from '../pages/customer/CheckoutPage';
-import ProfilePage from '../pages/customer/ProfilePage';
-import WishlistPage from '../pages/customer/WishlistPage';
-import OrdersPage from '../pages/customer/OrdersPage';
-import RewardPage from '../pages/customer/rewardDasboard';
-import Rewardspin from '../pages/customer/SpinTheWheel';
-import RewardsHistory from '../pages/customer/RewardsHistory';
-import Anlaytics from '../pages/customer/Analytics';
-import CatP from '../pages/customer/catP';
+import ProductsPages from '../pages/customer/products/ProdA';
+import LoginPage from '../pages/customer/Auth/LoginPage';
+import RegisterPage from '../pages/customer/Auth/RegisterPage';
+import ProductPage from '../pages/customer/products/ProductPage';
+import CategoryPage from '../pages/customer/Categories/CategoryPage';
+import CartPage from '../pages/customer/cart/CartPage';
+import CheckoutPage from '../pages/customer/orders/CheckoutPage';
+import ProfilePage from '../pages/customer/User/ProfilePage';
+import WishlistPage from '../pages/customer/cart/WishlistPage';
+import OrdersPage from '../pages/customer/orders/OrdersPage';
+import RewardPage from '../pages/customer/Rewards/rewardDasboard';
+import Rewardspin from '../pages/customer/Rewards/SpinTheWheel';
+import RewardsHistory from '../pages/customer/Rewards/RewardsHistory';
+import Anlaytics from '../pages/customer/Analysis/Analytics';
+import CatP from '../pages/customer/Categories/catP';
 import { useAuth } from '../context/AuthContext';
 
 export default function CustomerRoutes() {

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
-import ProductCard from '../../components/customer/ProductCard';
+import ProductCard from '../../../components/customer/ProductCard';
 
 export default function CategoryPage() {
     const { id } = useParams();
