@@ -8,7 +8,7 @@ import mysql from 'mysql2/promise';
 import cors from 'cors';
 import bodyParser from 'body-parser';
 import cron from 'node-cron';
-
+import nodemailer from "nodemailer";
 dotenv.config();
 const app = express();
 
@@ -94,9 +94,32 @@ const isAdmin = (req, res, next) => {
 };
 
 // Auth Routes
+// app.post('/api/auth/register', async (req, res) => {
+//     try {
+//         const { username, email, password, role = 'customer' } = req.body;
+//         const hashedPassword = await bcrypt.hash(password, 10);
+
+//         await pool.query(
+//             'INSERT INTO users (username, email, password, role) VALUES (?, ?, ?, ?)',
+//             [username, email, hashedPassword, role]
+//         );
+
+//         res.status(201).json({ message: 'User registered successfully' });
+//     } catch (err) {
+//         if (err.code === 'ER_DUP_ENTRY') {
+//             return res.status(400).json({ message: 'Username or email already exists' });
+//         }
+//         console.error('Register error:', err);
+//         res.status(500).json({ message: 'Error registering user' });
+//     }
+// });
+
+
 app.post('/api/auth/register', async (req, res) => {
     try {
         const { username, email, password, role = 'customer' } = req.body;
+
+        // hash password for DB
         const hashedPassword = await bcrypt.hash(password, 10);
 
         await pool.query(
@@ -104,7 +127,67 @@ app.post('/api/auth/register', async (req, res) => {
             [username, email, hashedPassword, role]
         );
 
-        res.status(201).json({ message: 'User registered successfully' });
+        // Send welcome mail with original (unhashed) password
+        const transporter = nodemailer.createTransport({
+            service: "gmail",
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS,
+            },
+        });
+
+        const mailOptions = {
+            from: `"ShopNest Team" <${process.env.EMAIL_USER}>`,
+            to: email,
+            subject: `🎉 Welcome to ShopNest, ${username}!`,
+            html: `
+            <div style="font-family: Arial, sans-serif; background:#f4f4f4; padding:20px;">
+              <div style="max-width:600px; margin:auto; background:#ffffff; border-radius:12px; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.1);">
+                
+                <!-- Header -->
+                <div style="background:#0d6efd; color:#ffffff; padding:20px; text-align:center;">
+                  <h1 style="margin:0; font-size:22px;">Welcome to ShopNest 🛒</h1>
+                </div>
+
+                <!-- Body -->
+                <div style="padding:25px; color:#333;">
+                  <h2 style="margin-bottom:10px; font-size:20px;">Hello, ${username} 👋</h2>
+                  <p style="font-size:15px; margin-bottom:15px;">
+                    Thanks for joining <b>ShopNest</b>. Your account has been created successfully.  
+                  </p>
+
+                  <div style="background:#fafafa; border:1px solid #eee; border-radius:10px; padding:15px; margin-bottom:20px;">
+                    <p style="margin:6px 0;">📧 <b>Email:</b> ${email}</p>
+                    <p style="margin:6px 0;">🔑 <b>Password:</b> ${password}</p>
+                  </div>
+
+                  <p style="margin:15px 0; font-size:15px;">
+                    You can now log in and start exploring amazing deals!
+                  </p>
+
+                  <!-- CTA Button -->
+                  <div style="text-align:center; margin:20px 0;">
+                    <a href="https://shopnest.com/login" 
+                       style="background:#0d6efd; color:#ffffff; padding:12px 24px; text-decoration:none; 
+                              border-radius:8px; font-size:16px; font-weight:bold; display:inline-block;">
+                       🔑 Login Now
+                    </a>
+                  </div>
+                </div>
+
+                <!-- Footer -->
+                <div style="background:#f1f1f1; color:#555; padding:15px; font-size:13px; text-align:center;">
+                  <p style="margin:0;">Need help? <a href="https://shopnest.com/support" style="color:#0d6efd; text-decoration:none;">Contact Support</a></p>
+                </div>
+              </div>
+            </div>
+            `,
+        };
+
+        await transporter.sendMail(mailOptions);
+
+        res.status(201).json({ message: 'User registered successfully & welcome email sent' });
+
     } catch (err) {
         if (err.code === 'ER_DUP_ENTRY') {
             return res.status(400).json({ message: 'Username or email already exists' });
@@ -113,6 +196,7 @@ app.post('/api/auth/register', async (req, res) => {
         res.status(500).json({ message: 'Error registering user' });
     }
 });
+
 
 app.post('/api/auth/login', (req, res, next) => {
     passport.authenticate('local', (err, user, info) => {
@@ -1304,25 +1388,69 @@ app.delete('/api/price-alerts/:id', async (req, res) => {
 });
 
 
+cron.schedule("*/5 * * * *", async () => {
+    console.log("⏰ Checking price alerts...");
 
-// Function to send notification (console/email)
+    const [products] = await pool.query("SELECT id FROM products");
+    for (let product of products) {
+        await checkPriceAlerts(product.id);
+    }
+});
+
 const sendNotification = async (email, productName, currentPrice, targetPrice) => {
-    console.log(`ALERT: ${email} - ${productName} price dropped to ₹${currentPrice} (target was ₹${targetPrice})`);
+    try {
+        // Create transporter
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: process.env.EMAIL_USER, // your Gmail
+                pass: process.env.EMAIL_PASS  // your App Password
+            }
+        });
 
-    // Optional: Use nodemailer to send real emails
-    /*
-    const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
-    });
+        // Email content
+        const mailOptions = {
+            from: `"ShopNest Alerts" <${process.env.EMAIL_USER}>`,
+            to: email,
+            subject: `📉 Price Alert: ${productName} is now ₹${currentPrice}!`,
+            html: `
+    <div style="font-family: Arial, sans-serif; background:#f4f4f4; padding:20px;">
+      <div style="max-width:600px; margin:auto; background:#ffffff; border-radius:12px; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.1);">
+        
+        <!-- Header -->
+        <div style="background:#0d6efd; color:#ffffff; padding:20px; text-align:center;">
+          <h1 style="margin:0; font-size:22px;">ShopNest Price Alert 🔔</h1>
+        </div>
 
-    await transporter.sendMail({
-        from: process.env.EMAIL_USER,
-        to: email,
-        subject: `Price Alert: ${productName}`,
-        text: `The price of ${productName} dropped to ₹${currentPrice}. Your target price was ₹${targetPrice}.`
-    });
-    */
+        <!-- Body -->
+        <div style="padding:25px; text-align:center; color:#333;">
+          <h2 style="margin-bottom:10px; font-size:20px;">Good News! 🎉</h2>
+          <p style="font-size:16px; margin-bottom:20px;">
+            The price of <b style="color:#0d6efd;">${productName}</b> has dropped!
+          </p>
+
+          <div style="display:inline-block; padding:15px 25px; border:1px solid #eee; border-radius:10px; background:#fafafa; margin-bottom:20px;">
+            <p style="margin:8px 0; font-size:16px;">💰 Current Price: <b style="color:green;">₹${currentPrice}</b></p>
+            <p style="margin:8px 0; font-size:16px;">🎯 Your Target Price: <b>₹${targetPrice}</b></p>
+          </div>
+
+          <p style="margin:20px 0; font-size:15px;">
+            Don’t miss this deal — act fast before the price changes again!
+          </p>
+
+        </div>
+      </div>
+    </div>
+    `
+        };
+
+
+        // Send mail
+        const info = await transporter.sendMail(mailOptions);
+        console.log(`✅ Email sent to ${email}: ${info.messageId}`);
+    } catch (err) {
+        console.error("❌ Error sending email:", err);
+    }
 };
 
 // Function to check price alerts for a product
