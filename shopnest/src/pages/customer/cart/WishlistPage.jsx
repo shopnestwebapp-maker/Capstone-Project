@@ -212,7 +212,7 @@ export default function WishlistPage() {
                 <div className="text-center py-12">
                     <HeartIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                     <p className="text-gray-500 mb-4">Your wishlist is empty</p>
-                    <Link to="/customer" className="inline-block bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700">Browse Products</Link>
+                    <Link to="/customer/allproducts" className="inline-block bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700">Browse Products</Link>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">

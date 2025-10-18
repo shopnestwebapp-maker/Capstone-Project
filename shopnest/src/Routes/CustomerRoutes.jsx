@@ -282,6 +282,7 @@ import CheckoutPage from '../pages/customer/orders/CheckoutPage';
 import ProfilePage from '../pages/customer/User/ProfilePage';
 import WishlistPage from '../pages/customer/cart/WishlistPage';
 import OrdersPage from '../pages/customer/orders/OrdersPage';
+import PaymentPage from '../pages/customer/orders/PaymentPage';
 import RewardPage from '../pages/customer/Rewards/rewardDasboard';
 import Rewardspin from '../pages/customer/Rewards/SpinTheWheel';
 import RewardsHistory from '../pages/customer/Rewards/RewardsHistory';
@@ -318,6 +319,8 @@ export default function CustomerRoutes() {
                 <Route path="rewards/spin" element={user ? <Rewardspin /> : <Navigate to="/customer/login" replace />} />
                 <Route path="rewards/history" element={user ? <RewardsHistory /> : <Navigate to="/customer/login" replace />} />
                 <Route path="Analytics" element={user ? <Anlaytics /> : <Navigate to="/customer/login" replace />} />
+                <Route path="/payment" element={user ? <PaymentPage /> : <Navigate to="/customer/login" replace />} />
+             
 
             </Route>
         </Routes>

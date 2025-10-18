@@ -58,7 +58,7 @@ export default function OrdersPage() {
                 setOrders(res.data);
                 setFilteredOrders(res.data);
             } catch (err) {
-                setError('Failed to load orders. Please try again later.',err);
+                setError('Failed to load orders. Please try again later.', err);
             } finally {
                 setLoading(false);
             }
@@ -85,7 +85,7 @@ export default function OrdersPage() {
             ));
             toast.success('Order cancelled successfully!');
         } catch (err) {
-            toast.error('Failed to cancel order. Please try again.',err);
+            toast.error('Failed to cancel order. Please try again.', err);
         } finally {
             setShowModal(false);
             setOrderToCancel(null);
@@ -99,7 +99,7 @@ export default function OrdersPage() {
             setOrders(orders.map(o =>
                 o.id === order.id ? { ...o, status: 'returned' } : o
             ));
-            toast.success('Order marked as returned successfully!');
+            toast.success('Order Returned Requested!');
         } catch (err) {
             toast.error(`Failed to return order. ${err.message || ''}`);
         }

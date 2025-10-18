@@ -17,24 +17,51 @@ export default function ProductPage() {
     const [error, setError] = useState('');
     const [quantity, setQuantity] = useState(1);
 
+    // Review states
+    const [reviews, setReviews] = useState([]);
+    const [newStar, setNewStar] = useState(5);
+    const [newText, setNewText] = useState('');
+    const [reviewsLoading, setReviewsLoading] = useState(true);
+
+    // Fetch product info
+    const fetchProduct = async () => {
+        setLoading(true);
+        try {
+            const res = await axios.get(`/api/products/${id}`);
+            setProduct(res.data);
+            setError('');
+        } catch (err) {
+            setError(err?.response?.data?.message || 'Product not found');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
-        const fetchProduct = async () => {
-            try {
-                const res = await axios.get(`/api/products/${id}`);
-                setProduct(res.data);
-            } catch (err) {
-                setError('Product not found', err);
-            } finally {
-                setLoading(false);
-            }
-        };
         fetchProduct();
+    }, [id]);
+
+    // Fetch reviews
+    const fetchReviews = async () => {
+        try {
+            const res = await axios.get(`/api/products/${id}/reviews`);
+            setReviews(res.data);
+        } catch (err) {
+            console.error('Error fetching reviews:', err);
+        } finally {
+            setReviewsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchReviews();
     }, [id]);
 
     const addToCart = async () => {
         try {
             await axios.post('/api/cart/add', { productId: id, quantity }, { withCredentials: true });
             alert('Product added to cart');
+            window.location.reload();
         } catch (err) {
             console.error('Error adding to cart:', err);
             alert('Failed to add to cart');
@@ -45,9 +72,28 @@ export default function ProductPage() {
         try {
             await axios.post('/api/wishlist/add', { productId: id }, { withCredentials: true });
             alert('Product added to wishlist');
+            window.location.reload();
         } catch (err) {
             console.error('Error adding to wishlist:', err);
             alert('Failed to add to wishlist');
+        }
+    };
+
+    const submitReview = async () => {
+        if (!newText) return alert('Please enter a review text');
+        try {
+            await axios.post(
+                `/api/products/${id}/reviews`,
+                { star: newStar, text: newText },
+                { withCredentials: true }
+            );
+            setNewText('');
+            setNewStar(1);
+            fetchReviews(); // refresh reviews
+            fetchProduct(); // update average_rating and review_count
+            alert('Review submitted!');
+        } catch (err) {
+            console.error('Error submitting review:', err);
         }
     };
 
@@ -81,16 +127,27 @@ export default function ProductPage() {
                 <div className="bg-white p-6 rounded-lg shadow-md">
                     <h1 className="text-3xl font-bold mb-2">{product.name}</h1>
 
+                    {/* Rating */}
                     <div className="flex items-center mb-4">
                         <div className="flex">
                             {[1, 2, 3, 4, 5].map((rating) => (
                                 <StarIcon
                                     key={rating}
-                                    className={`h-5 w-5 ${rating <= 4 ? 'text-yellow-400' : 'text-gray-300'}`}
+                                    className={`h-5 w-5 ${rating <= Math.round(product.average_rating || 0)
+                                        ? 'text-yellow-400'
+                                        : 'text-gray-300'
+                                        }`}
                                 />
                             ))}
                         </div>
-                        <span className="text-gray-600 ml-2">(24 reviews)</span>
+                        <span className="text-gray-600 ml-2">
+                            ({product.review_count || 0} reviews)
+                        </span>
+                        {product.average_rating > 0 && (
+                            <span className="ml-2 text-sm text-gray-500">
+                                {Number(product.average_rating).toFixed(1)} / 5
+                            </span>
+                        )}
                     </div>
 
                     {/* Price + Comparison */}
@@ -148,7 +205,9 @@ export default function ProductPage() {
                     <p className="text-gray-700 mb-6">{product.description}</p>
 
                     <div className="mb-6">
-                        <label htmlFor="quantity" className="block text-gray-700 mb-2">Quantity</label>
+                        <label htmlFor="quantity" className="block text-gray-700 mb-2">
+                            Quantity
+                        </label>
                         <select
                             id="quantity"
                             value={quantity}
@@ -156,7 +215,9 @@ export default function ProductPage() {
                             className="border border-gray-300 rounded-md px-3 py-2"
                         >
                             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
-                                <option key={num} value={num}>{num}</option>
+                                <option key={num} value={num}>
+                                    {num}
+                                </option>
                             ))}
                         </select>
                     </div>
@@ -188,6 +249,70 @@ export default function ProductPage() {
                         </ul>
                     </div>
                 </div>
+            </div>
+
+            {/* Reviews Section */}
+            <div className="mt-10">
+                <h2 className="text-2xl font-bold mb-4">Customer Reviews</h2>
+
+                {/* Submit new review */}
+                <div className="mb-6 p-4 border rounded-md bg-gray-50">
+                    <h3 className="font-medium mb-2">Add your review</h3>
+                    <div className="flex items-center mb-2">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                            <StarIcon
+                                key={star}
+                                className={`h-6 w-6 cursor-pointer ${star <= newStar ? 'text-yellow-400' : 'text-gray-300'
+                                    }`}
+                                onClick={() => setNewStar(star)}
+                            />
+                        ))}
+                        <span className="ml-2 text-sm text-gray-600">{newStar} / 5</span>
+                    </div>
+                    <textarea
+                        className="w-full border border-gray-300 rounded-md p-2 mb-2"
+                        rows={3}
+                        placeholder="Write your review here..."
+                        value={newText}
+                        onChange={(e) => setNewText(e.target.value)}
+                    />
+                    <button
+                        onClick={submitReview}
+                        className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+                    >
+                        Submit Review
+                    </button>
+                </div>
+
+                {/* Display reviews */}
+                {reviewsLoading ? (
+                    <p>Loading reviews...</p>
+                ) : reviews.length === 0 ? (
+                    <p className="text-gray-600">No reviews yet.</p>
+                ) : (
+                    <div className="space-y-4">
+                        {reviews.map((rev) => (
+                            <div key={rev.id} className="border-b border-gray-200 pb-3">
+                                <div className="flex items-center mb-1">
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                        <StarIcon
+                                            key={star}
+                                            className={`h-5 w-5 ${star <= rev.review_star ? 'text-yellow-400' : 'text-gray-300'
+                                                }`}
+                                        />
+                                    ))}
+                                    <span className="ml-2 text-sm text-gray-600">
+                                        {rev.user_name || 'Anonymous'}
+                                    </span>
+                                    <span className="ml-2 text-xs text-gray-400">
+                                        {new Date(rev.created_at).toLocaleDateString()}
+                                    </span>
+                                </div>
+                                <p className="text-gray-700">{rev.review_text}</p>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
         </div>
     );

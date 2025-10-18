@@ -341,17 +341,56 @@ app.get('/api/products', async (req, res) => {
 
 
 
+// app.get('/api/products/:id', async (req, res) => {
+//     try {
+//         const [products] = await pool.query('SELECT * FROM products WHERE id = ?', [req.params.id]);
+//         if (products.length === 0) {
+//             return res.status(404).json({ message: 'Product not found' });
+//         }
+//         res.json(products[0]);
+//     } catch (err) {
+//         res.status(500).json({ message: 'Error fetching product' });
+//     }
+// });
 app.get('/api/products/:id', async (req, res) => {
+    const productId = req.params.id;
+
     try {
-        const [products] = await pool.query('SELECT * FROM products WHERE id = ?', [req.params.id]);
-        if (products.length === 0) {
+        // Fetch product
+        const [productRows] = await pool.query(
+            `SELECT * FROM products WHERE id = ?`,
+            [productId]
+        );
+
+        if (productRows.length === 0) {
             return res.status(404).json({ message: 'Product not found' });
         }
-        res.json(products[0]);
+
+        const product = productRows[0];
+
+        // Fetch average rating and review count
+        const [reviewStatsRows] = await pool.query(
+            `SELECT 
+                COALESCE(AVG(review_star), 0) AS average_rating, 
+                COUNT(*) AS review_count 
+             FROM product_reviews 
+             WHERE product_id = ?`,
+            [productId]
+        );
+
+        const reviewStats = reviewStatsRows[0];
+
+        // Merge review info into product
+        product.average_rating = Number(reviewStats.average_rating) || 0;
+        product.review_count = Number(reviewStats.review_count) || 0;
+
+        res.json(product);
     } catch (err) {
-        res.status(500).json({ message: 'Error fetching product' });
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
     }
 });
+
 app.delete('/api/products/:id', async (req, res) => {
     try {
         const [products] = await pool.query('delete FROM products WHERE id = ?', [req.params.id]);
@@ -619,8 +658,121 @@ app.delete('/api/wishlist/remove/:productId', isAuthenticated, async (req, res) 
 //         res.status(500).json({ message: 'Error creating order' });
 //     }
 // });
+// app.post('/api/orders/create', isAuthenticated, async (req, res) => {
+//     const { name, email, address, city, state, zip, paymentMethod, redeemPoints = 0 } = req.body;
+
+//     if (!name || !email || !address || !city || !state || !zip || !paymentMethod) {
+//         return res.status(400).json({ message: 'Missing required shipping or payment information' });
+//     }
+
+//     const conn = await pool.getConnection();
+//     try {
+//         const [carts] = await conn.query('SELECT * FROM carts WHERE user_id = ?', [req.user.id]);
+//         if (carts.length === 0) {
+//             return res.status(400).json({ message: 'Cart is empty' });
+//         }
+
+//         const cartId = carts[0].id;
+//         const [cartItems] = await conn.query(`
+//             SELECT ci.*, p.price, p.stock_quantity, p.name
+//             FROM cart_items ci
+//             JOIN products p ON ci.product_id = p.id
+//             WHERE ci.cart_id = ?
+//         `, [cartId]);
+
+//         if (cartItems.length === 0) {
+//             return res.status(400).json({ message: 'Cart is empty' });
+//         }
+
+//         // Check stock
+//         for (const item of cartItems) {
+//             if (item.quantity > item.stock_quantity) {
+//                 return res.status(400).json({ message: `Insufficient stock for product: ${item.name}` });
+//             }
+//         }
+
+//         // Calculate totals
+//         const totalAmount = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+//         let discount = 0;
+
+//         await conn.query('START TRANSACTION');
+
+//         // 🔹 Check & apply redeem points
+//         if (redeemPoints > 0) {
+//             const [[reward]] = await conn.query("SELECT points FROM user_rewards WHERE user_id=?", [req.user.id]);
+
+//             if (!reward || reward.points < redeemPoints) {
+//                 await conn.query("ROLLBACK");
+//                 return res.status(400).json({ message: "Not enough reward points" });
+//             }
+
+//             discount = redeemPoints; // 1 point = ₹1
+//             await conn.query("UPDATE user_rewards SET points = points - ? WHERE user_id=?", [redeemPoints, req.user.id]);
+//             await conn.query(
+//                 "INSERT INTO reward_transactions (user_id, points, type, description) VALUES (?, ?, 'redeem', 'Redeemed at checkout')",
+//                 [req.user.id, -redeemPoints]
+//             );
+//         }
+
+//         const finalAmount = Math.max(totalAmount - discount, 0);
+
+//         // Insert order
+//         const [orderResult] = await conn.query(
+//             'INSERT INTO orders (user_id, total_amount, discount_amount, final_amount, shipping_address, payment_method) VALUES (?, ?, ?, ?, ?, ?)',
+//             [req.user.id, totalAmount, discount, finalAmount, `${name}, ${address}, ${city}, ${state} ${zip}`, paymentMethod]
+//         );
+//         const orderId = orderResult.insertId;
+
+//         // Insert order items + update stock
+//         for (const item of cartItems) {
+//             await conn.query(
+//                 'INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?, ?, ?, ?)',
+//                 [orderId, item.product_id, item.quantity, item.price]
+//             );
+//             await conn.query(
+//                 'UPDATE products SET stock_quantity = stock_quantity - ? WHERE id = ?',
+//                 [item.quantity, item.product_id]
+//             );
+//         }
+
+//         // Clear cart
+//         await conn.query('DELETE FROM cart_items WHERE cart_id = ?', [cartId]);
+
+//         // 🔹 Auto-credit points (10% rule)
+//         const earnedPoints = Math.floor(finalAmount * 0.1);
+//         if (earnedPoints > 0) {
+//             await conn.query(
+//                 `INSERT INTO user_rewards (user_id, points)
+//                  VALUES (?, ?)
+//                  ON DUPLICATE KEY UPDATE points = points + VALUES(points)`,
+//                 [req.user.id, earnedPoints]
+//             );
+
+//             await conn.query(
+//                 "INSERT INTO reward_transactions (user_id, points, type, description) VALUES (?, ?, 'earn', 'Points from order')",
+//                 [req.user.id, earnedPoints]
+//             );
+//         }
+
+//         await conn.query('COMMIT');
+
+//         res.json({
+//             message: 'Order created successfully',
+//             orderId,
+//             earnedPoints,
+//             discount,
+//             finalAmount
+//         });
+//     } catch (err) {
+//         await conn.query('ROLLBACK');
+//         console.error('Error creating order:', err);
+//         res.status(500).json({ message: 'Error creating order' });
+//     } finally {
+//         conn.release();
+//     }
+// });
 app.post('/api/orders/create', isAuthenticated, async (req, res) => {
-    const { name, email, address, city, state, zip, paymentMethod, redeemPoints = 0 } = req.body;
+    const { name, email, address, city, state, zip, paymentMethod, redeemPoints = 0, paymentStatus = 'pending' } = req.body;
 
     if (!name || !email || !address || !city || !state || !zip || !paymentMethod) {
         return res.status(400).json({ message: 'Missing required shipping or payment information' });
@@ -645,20 +797,17 @@ app.post('/api/orders/create', isAuthenticated, async (req, res) => {
             return res.status(400).json({ message: 'Cart is empty' });
         }
 
-        // Check stock
         for (const item of cartItems) {
             if (item.quantity > item.stock_quantity) {
                 return res.status(400).json({ message: `Insufficient stock for product: ${item.name}` });
             }
         }
 
-        // Calculate totals
         const totalAmount = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
         let discount = 0;
 
         await conn.query('START TRANSACTION');
 
-        // 🔹 Check & apply redeem points
         if (redeemPoints > 0) {
             const [[reward]] = await conn.query("SELECT points FROM user_rewards WHERE user_id=?", [req.user.id]);
 
@@ -667,7 +816,7 @@ app.post('/api/orders/create', isAuthenticated, async (req, res) => {
                 return res.status(400).json({ message: "Not enough reward points" });
             }
 
-            discount = redeemPoints; // 1 point = ₹1
+            discount = redeemPoints;
             await conn.query("UPDATE user_rewards SET points = points - ? WHERE user_id=?", [redeemPoints, req.user.id]);
             await conn.query(
                 "INSERT INTO reward_transactions (user_id, points, type, description) VALUES (?, ?, 'redeem', 'Redeemed at checkout')",
@@ -677,14 +826,16 @@ app.post('/api/orders/create', isAuthenticated, async (req, res) => {
 
         const finalAmount = Math.max(totalAmount - discount, 0);
 
-        // Insert order
+        // 🔹 INSERT ORDER with payment status
         const [orderResult] = await conn.query(
-            'INSERT INTO orders (user_id, total_amount, discount_amount, final_amount, shipping_address, payment_method) VALUES (?, ?, ?, ?, ?, ?)',
-            [req.user.id, totalAmount, discount, finalAmount, `${name}, ${address}, ${city}, ${state} ${zip}`, paymentMethod]
+            `INSERT INTO orders (user_id, total_amount, discount_amount, final_amount, shipping_address, payment_method, payment_status)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [req.user.id, totalAmount, discount, finalAmount,
+            `${name}, ${address}, ${city}, ${state} ${zip}`,
+                paymentMethod, paymentStatus]
         );
         const orderId = orderResult.insertId;
 
-        // Insert order items + update stock
         for (const item of cartItems) {
             await conn.query(
                 'INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?, ?, ?, ?)',
@@ -696,10 +847,8 @@ app.post('/api/orders/create', isAuthenticated, async (req, res) => {
             );
         }
 
-        // Clear cart
         await conn.query('DELETE FROM cart_items WHERE cart_id = ?', [cartId]);
 
-        // 🔹 Auto-credit points (10% rule)
         const earnedPoints = Math.floor(finalAmount * 0.1);
         if (earnedPoints > 0) {
             await conn.query(
@@ -708,7 +857,6 @@ app.post('/api/orders/create', isAuthenticated, async (req, res) => {
                  ON DUPLICATE KEY UPDATE points = points + VALUES(points)`,
                 [req.user.id, earnedPoints]
             );
-
             await conn.query(
                 "INSERT INTO reward_transactions (user_id, points, type, description) VALUES (?, ?, 'earn', 'Points from order')",
                 [req.user.id, earnedPoints]
@@ -720,6 +868,7 @@ app.post('/api/orders/create', isAuthenticated, async (req, res) => {
         res.json({
             message: 'Order created successfully',
             orderId,
+            paymentStatus,
             earnedPoints,
             discount,
             finalAmount
@@ -1512,6 +1661,53 @@ cron.schedule('0 0 */12 * * *', async () => {
         console.error('Error updating prices:', err);
     }
 });
+app.get('/api/products/:id/reviews', async (req, res) => {
+    const productId = req.params.id;
+
+    try {
+        const [reviews] = await pool.query(
+            `SELECT r.id, r.review_star, r.review_text, r.created_at, 
+                    u.username AS user_name
+             FROM product_reviews r
+             LEFT JOIN users u ON r.user_id = u.id
+             WHERE r.product_id = ?
+             ORDER BY r.created_at DESC`,
+            [productId]
+        );
+
+        res.json(reviews);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+app.post('/api/products/:id/reviews', async (req, res) => {
+    const productId = req.params.id;
+    const { star, text } = req.body;
+    const userId = req.user?.id; // assuming user is authenticated
+
+    if (!userId) return res.status(401).json({ message: 'Login required' });
+
+    if (!star || star < 1 || star > 5) {
+        return res.status(400).json({ message: 'Star rating must be between 1 and 5' });
+    }
+
+    try {
+        await pool.query(
+            `INSERT INTO product_reviews (product_id, user_id, review_star, review_text)
+             VALUES (?, ?, ?, ?)`,
+            [productId, userId, star, text]
+        );
+
+        res.status(201).json({ message: 'Review submitted successfully' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+
 
 // Start server
 const PORT = process.env.PORT || 5000;

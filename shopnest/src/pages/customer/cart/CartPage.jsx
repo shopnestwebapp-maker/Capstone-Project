@@ -15,7 +15,7 @@ export default function CartPage() {
                 const res = await axios.get('/api/cart');
                 setCart(res.data);
             } catch (err) {
-                setError('Failed to load cart');
+                setError('Failed to load cart',err);
             } finally {
                 setLoading(false);
             }
@@ -28,8 +28,9 @@ export default function CartPage() {
             await axios.put(`/api/cart/update/${itemId}`, { quantity: newQuantity });
             const res = await axios.get('/api/cart');
             setCart(res.data);
+            window.location.reload();
         } catch (err) {
-            setError('Failed to update quantity');
+            setError('Failed to update quantity',err);
         }
     };
     useEffect(() => {
@@ -53,8 +54,9 @@ export default function CartPage() {
             await axios.delete(`/api/cart/remove/${itemId}`);
             const res = await axios.get('/api/cart');
             setCart(res.data);
+            window.location.reload();
         } catch (err) {
-            setError('Failed to remove item');
+            setError('Failed to remove item',err);
         }
     };
 
@@ -76,7 +78,7 @@ export default function CartPage() {
                 <div className="text-center py-20 bg-white rounded-xl shadow-sm">
                     <p className="text-gray-500 mb-6 text-xl">Your cart is empty 🙁</p>
                     <Link
-                        to="/customer"
+                        to="/customer/allproducts"
                         className="inline-block bg-blue-600 text-white px-8 py-3 rounded-full font-semibold hover:bg-blue-700 transition-colors duration-300 transform hover:scale-105"
                     >
                         Continue Shopping

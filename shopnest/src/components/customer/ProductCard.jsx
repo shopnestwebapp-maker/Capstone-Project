@@ -1,13 +1,44 @@
 import { Link } from 'react-router-dom';
 import { StarIcon, HeartIcon, ShoppingCartIcon } from '@heroicons/react/24/solid';
 import axios from 'axios';
+import { useState, useEffect } from 'react';
 
 export default function ProductCard({ product }) {
+    const [ratingData, setRatingData] = useState({ average_rating: 0, review_count: 0 });
+    const [isInWishlist, setIsInWishlist] = useState(false); // Track wishlist status
+
+    useEffect(() => {
+        const fetchRatings = async () => {
+            try {
+                const res = await axios.get(`/api/products/${product.id}`);
+                setRatingData({
+                    average_rating: res.data.average_rating,
+                    review_count: res.data.review_count
+                });
+            } catch (err) {
+                console.error(err);
+            }
+        };
+        fetchRatings();
+
+        // Check if product is in wishlist
+        const checkWishlist = async () => {
+            try {
+                const res = await axios.get('/api/wishlist', { withCredentials: true });
+                const wishlistIds = res.data.map(item => item.product_id);
+                setIsInWishlist(wishlistIds.includes(product.id));
+            } catch (err) {
+                console.error('Error fetching wishlist:', err);
+            }
+        };
+        checkWishlist();
+    }, [product.id]);
 
     const addToCart = async () => {
         try {
             await axios.post('/api/cart/add', { productId: product.id, quantity: 1 }, { withCredentials: true });
             alert('Product added to cart');
+            window.location.reload();
         } catch (err) {
             console.error('Error adding to cart:', err);
             alert('Failed to add to cart');
@@ -16,7 +47,9 @@ export default function ProductCard({ product }) {
 
     const addToWishlist = async () => {
         try {
+            if (isInWishlist) return; // already in wishlist
             await axios.post('/api/wishlist/add', { productId: product.id }, { withCredentials: true });
+            setIsInWishlist(true);
             alert('Product added to wishlist');
         } catch (err) {
             console.error('Error adding to wishlist:', err);
@@ -43,11 +76,23 @@ export default function ProductCard({ product }) {
                             {[1, 2, 3, 4, 5].map((rating) => (
                                 <StarIcon
                                     key={rating}
-                                    className={`h-4 w-4 ${rating <= 4 ? 'text-yellow-400' : 'text-gray-300'}`}
+                                    className={`h-4 w-4 ${rating <= Math.round(ratingData.average_rating || 0)
+                                        ? 'text-yellow-400'
+                                        : 'text-gray-300'
+                                        }`}
                                 />
                             ))}
                         </div>
-                        <span className="text-xs text-gray-500 ml-1">(24)</span>
+
+                        <span className="text-xs text-gray-500 ml-1">
+                            ({ratingData.review_count || 0} reviews)
+                        </span>
+
+                        {product.average_rating > 0 && (
+                            <span className="ml-1 text-[11px] text-gray-500">
+                                {Number(ratingData.average_rating).toFixed(1)} ★
+                            </span>
+                        )}
                     </div>
 
                     <p className="text-lg font-bold text-blue-600 mb-3">
@@ -59,7 +104,7 @@ export default function ProductCard({ product }) {
                             className="text-gray-500 hover:text-red-500"
                             onClick={(e) => { e.preventDefault(); addToWishlist(); }}
                         >
-                            <HeartIcon className="h-5 w-5" />
+                            <HeartIcon className={`h-5 w-5 ${isInWishlist ? 'text-red-500' : ''}`} />
                         </button>
 
                         <button

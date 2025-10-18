@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import PaymentPage from './PaymentPage';
 import { FaCreditCard, FaPaypal, FaMoneyBillWave } from 'react-icons/fa'; // Added for icons
 
 export default function CheckoutPage() {
@@ -31,7 +32,7 @@ export default function CheckoutPage() {
                 setCart(cartRes.data);
                 setAvailablePoints(pointsRes.data.points || 0);
             } catch (err) {
-                setError('Failed to load checkout data');
+                setError('Failed to load checkout data',err);
             } finally {
                 setLoading(false);
             }
@@ -52,6 +53,13 @@ export default function CheckoutPage() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        if (formData.paymentMethod === 'credit_card' || formData.paymentMethod === 'UPI') {
+            // Redirect to payment page
+            navigate('/customer/payment', { state: { formData, redeemPoints, cart } });
+            return;
+        }
+
         try {
             await axios.post('/api/orders/create', {
                 ...formData,
@@ -59,7 +67,7 @@ export default function CheckoutPage() {
             });
             navigate('/customer/orders');
         } catch (err) {
-            setError('Failed to place order. Please try again.');
+            setError('Failed to place order. Please try again.',err);
         }
     };
 
@@ -77,7 +85,7 @@ export default function CheckoutPage() {
 
     const paymentMethods = [
         { id: 'credit_card', name: 'Credit Card', icon: <FaCreditCard className="mr-2 text-gray-600" /> },
-        { id: 'paypal', name: 'PayPal', icon: <FaPaypal className="mr-2 text-gray-600" /> },
+        { id: 'UPI', name: 'UPI'},
         { id: 'cod', name: 'Cash on Delivery', icon: <FaMoneyBillWave className="mr-2 text-gray-600" /> }
     ];
 
