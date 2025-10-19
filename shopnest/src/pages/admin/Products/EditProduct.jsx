@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../../../utils/axios"; // updated import
 
 export default function EditProduct() {
-    const { id } = useParams(); // get product id from URL
+    const { id } = useParams();
     const navigate = useNavigate();
 
     const [product, setProduct] = useState(null);
@@ -15,13 +15,14 @@ export default function EditProduct() {
         const fetchData = async () => {
             try {
                 const [productRes, categoriesRes] = await Promise.all([
-                    axios.get(`/api/products/${id}`),
-                    axios.get("/api/categories"),
+                    api.get(`/api/products/${id}`),
+                    api.get("/api/categories"),
                 ]);
                 setProduct(productRes.data);
                 setCategories(categoriesRes.data);
             } catch (err) {
-                setError("Failed to load product details", err);
+                console.error(err);
+                setError("Failed to load product details.");
             } finally {
                 setLoading(false);
             }
@@ -37,10 +38,11 @@ export default function EditProduct() {
     const handleUpdate = async (e) => {
         e.preventDefault();
         try {
-            await axios.put(`/api/products/${id}`, product);
-            navigate("/admin/products"); // go back to products list
+            await api.put(`/api/products/${id}`, product);
+            navigate("/admin/products");
         } catch (err) {
-            setError("Failed to update product", err);
+            console.error(err);
+            setError("Failed to update product.");
         }
     };
 
@@ -59,9 +61,7 @@ export default function EditProduct() {
                 <form onSubmit={handleUpdate} className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                                Name
-                            </label>
+                            <label htmlFor="name" className="block text-sm font-medium text-gray-700">Name</label>
                             <input
                                 type="text"
                                 id="name"
@@ -73,9 +73,7 @@ export default function EditProduct() {
                             />
                         </div>
                         <div>
-                            <label htmlFor="price" className="block text-sm font-medium text-gray-700">
-                               Base Price
-                            </label>
+                            <label htmlFor="base_price" className="block text-sm font-medium text-gray-700">Base Price</label>
                             <input
                                 type="number"
                                 id="base_price"
@@ -89,9 +87,7 @@ export default function EditProduct() {
                             />
                         </div>
                         <div>
-                            <label htmlFor="price" className="block text-sm font-medium text-gray-700">
-                                Price
-                            </label>
+                            <label htmlFor="price" className="block text-sm font-medium text-gray-700">Price</label>
                             <input
                                 type="number"
                                 id="price"
@@ -107,9 +103,7 @@ export default function EditProduct() {
                     </div>
 
                     <div>
-                        <label htmlFor="description" className="block text-sm font-medium text-gray-700">
-                            Description
-                        </label>
+                        <label htmlFor="description" className="block text-sm font-medium text-gray-700">Description</label>
                         <textarea
                             id="description"
                             name="description"
@@ -122,9 +116,7 @@ export default function EditProduct() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label htmlFor="category_id" className="block text-sm font-medium text-gray-700">
-                                Category
-                            </label>
+                            <label htmlFor="category_id" className="block text-sm font-medium text-gray-700">Category</label>
                             <select
                                 id="category_id"
                                 name="category_id"
@@ -141,9 +133,7 @@ export default function EditProduct() {
                             </select>
                         </div>
                         <div>
-                            <label htmlFor="stock_quantity" className="block text-sm font-medium text-gray-700">
-                                Stock Quantity
-                            </label>
+                            <label htmlFor="stock_quantity" className="block text-sm font-medium text-gray-700">Stock Quantity</label>
                             <input
                                 type="number"
                                 id="stock_quantity"
@@ -158,9 +148,7 @@ export default function EditProduct() {
                     </div>
 
                     <div>
-                        <label htmlFor="image_url" className="block text-sm font-medium text-gray-700">
-                            Image URL
-                        </label>
+                        <label htmlFor="image_url" className="block text-sm font-medium text-gray-700">Image URL</label>
                         <input
                             type="url"
                             id="image_url"

@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { PencilIcon, TrashIcon, PlusIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
-
+import api from '../../../utils/axios';
 export default function Products() {
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState([]);
@@ -28,8 +27,8 @@ export default function Products() {
         const fetchData = async () => {
             try {
                 const [productsRes, categoriesRes] = await Promise.all([
-                    axios.get('/api/admin/products'),
-                    axios.get('/api/admin/categories')
+                    api.get('/api/admin/products'),
+                    api.get('/api/admin/categories')
                 ]);
                 setProducts(productsRes.data);
                 setCategories(categoriesRes.data);
@@ -56,7 +55,7 @@ export default function Products() {
     const handleAddProduct = async (e) => {
         e.preventDefault();
         try {
-            const res = await axios.post('/api/admin/products/', newProduct);
+            const res = await api.post('/api/admin/products/', newProduct);
             setProducts([...products, res.data]);
             setNewProduct({
                 name: '',
@@ -78,7 +77,7 @@ export default function Products() {
             return;
         }
         try {
-            await axios.delete(`/api/admin/products/${id}`);
+            await api.delete(`/api/admin/products/${id}`);
             setProducts(products.filter(prod => prod.id !== id));
             setError('');
         } catch (err) {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../../../utils/axios'; // updated import
 import { TrashIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 
 export default function Orders() {
@@ -10,7 +10,7 @@ export default function Orders() {
     useEffect(() => {
         const fetchOrders = async () => {
             try {
-                const res = await axios.get('/api/admin/orders');
+                const res = await api.get('/api/admin/orders'); // use api instance
                 setOrders(res.data);
             } catch (err) {
                 console.error('Failed to fetch orders:', err);
@@ -24,7 +24,7 @@ export default function Orders() {
 
     const handleStatusChange = async (orderId, newStatus) => {
         try {
-            await axios.put(`/api/admin/orders/${orderId}/status`, { status: newStatus });
+            await api.put(`/api/admin/orders/${orderId}/status`, { status: newStatus }); // use api
             setOrders(orders.map(order =>
                 order.id === orderId ? { ...order, status: newStatus } : order
             ));
@@ -38,7 +38,7 @@ export default function Orders() {
     const handleDeleteOrder = async (orderId) => {
         if (window.confirm('Are you sure you want to delete this order? This action cannot be undone.')) {
             try {
-                await axios.delete(`/api/orders/${orderId}`);
+                await api.delete(`/api/orders/${orderId}`); // use api
                 setOrders(orders.filter(order => order.id !== orderId));
                 setError('');
             } catch (err) {
@@ -94,7 +94,7 @@ export default function Orders() {
                                                 value={order.status}
                                                 onChange={(e) => handleStatusChange(order.id, e.target.value)}
                                                 className={`py-1 rounded-md text-sm border-none focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500 transition-colors capitalize
-                                                ${order.status === 'delivered' ? 'bg-green-100 text-green-800' :
+                                                    ${order.status === 'delivered' ? 'bg-green-100 text-green-800' :
                                                         order.status === 'shipped' ? 'bg-blue-100 text-blue-800' :
                                                             order.status === 'processing' ? 'bg-yellow-100 text-yellow-800' :
                                                                 order.status === 'cancelled' ? 'bg-red-100 text-red-800' :

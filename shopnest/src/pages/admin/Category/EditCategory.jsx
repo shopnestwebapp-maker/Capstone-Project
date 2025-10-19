@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import axios from "axios";
 import { ArrowLeftIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
-
+import api from '../../../utils/axios';
 export default function EditCategory() {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -14,7 +13,7 @@ export default function EditCategory() {
     useEffect(() => {
         const fetchCategory = async () => {
             try {
-                const res = await axios.get(`/api/categories/${id}`);
+                const res = await api.get(`/api/categories/${id}`);
                 setCategory(res.data[0]);
             } catch (err) {
                 console.error("Failed to load category:", err);
@@ -34,7 +33,7 @@ export default function EditCategory() {
     const handleUpdate = async (e) => {
         e.preventDefault();
         try {
-            await axios.put(`/api/admin/categories/${id}`, {
+            await api.put(`/api/admin/categories/${id}`, {
                 name: category.name,
                 description: category.description
             });
@@ -51,7 +50,6 @@ export default function EditCategory() {
                 <div className="animate-spin text-blue-500">
                     <ArrowPathIcon className="h-10 w-10" />
                 </div>
-                <p className="ml-4 text-lg text-gray-600">Loading category details...</p>
             </div>
         );
     }

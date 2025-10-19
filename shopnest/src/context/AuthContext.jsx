@@ -383,8 +383,9 @@
 //     }
 //     return context;
 // }
+
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
+import api from '../utils/axios';
 
 const AuthContext = createContext();
 
@@ -396,9 +397,12 @@ export function AuthProvider({ children }) {
         error: null
     });
 
+
+
+
     const checkAuth = useCallback(async () => {
         try {
-            const res = await axios.get('/api/auth/user', {
+            const res = await api.get('/api/auth/user', {
                 withCredentials: true,
                 headers: { 'Content-Type': 'application/json' },
             });
@@ -431,7 +435,7 @@ export function AuthProvider({ children }) {
         try {
             setAuthState(prev => ({ ...prev, loading: true }));
 
-            const res = await axios.post(
+            const res = await api.post(
                 '/api/auth/login',
                 { username, password },
                 { withCredentials: true }
@@ -453,7 +457,7 @@ export function AuthProvider({ children }) {
         try {
             setAuthState(prev => ({ ...prev, loading: true }));
 
-            const res = await axios.post(
+            const res = await api.post(
                 '/api/auth/register',
                 { username, email, password },
                 { withCredentials: true }
@@ -475,7 +479,7 @@ export function AuthProvider({ children }) {
         try {
             setAuthState(prev => ({ ...prev, loading: true }));
 
-            await axios.post('/api/auth/logout', {}, { withCredentials: true });
+            await api.post('/api/auth/logout', {}, { withCredentials: true });
 
             setAuthState({
                 user: null,

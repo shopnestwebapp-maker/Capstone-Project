@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
 import { PencilIcon, TrashIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import api from '../../../utils/axios';
 
 export default function Users() {
     const [users, setUsers] = useState([]);
@@ -10,7 +10,7 @@ export default function Users() {
     useEffect(() => {
         const fetchUsers = async () => {
             try {
-                const res = await axios.get('/api/admin/users');
+                const res = await api.get('/admin/users');  // changed here
                 setUsers(res.data);
             } catch (err) {
                 console.error('Failed to fetch users:', err);
@@ -24,7 +24,7 @@ export default function Users() {
 
     const handleRoleChange = async (userId, newRole) => {
         try {
-            await axios.put(`/api/admin/users/${userId}/role`, { role: newRole });
+            await api.put(`/admin/users/${userId}/role`, { role: newRole });  // changed here
             setUsers(users.map(user =>
                 user.id === userId ? { ...user, role: newRole } : user
             ));
@@ -40,7 +40,7 @@ export default function Users() {
             return;
         }
         try {
-            await axios.delete(`/api/admin/users/${userId}`);
+            await api.delete(`/admin/users/${userId}`);  // changed here
             setUsers(users.filter(user => user.id !== userId));
             setError('');
         } catch (err) {

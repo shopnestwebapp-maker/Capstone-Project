@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { PencilIcon, TrashIcon, PlusIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 
+import api from '../../../utils/axios';
 export default function Categories() {
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -33,7 +33,7 @@ export default function Categories() {
     useEffect(() => {
         const fetchCategories = async () => {
             try {
-                const res = await axios.get('/api/admin/categories');
+                const res = await api.get('/api/admin/categories');
                 setCategories(res.data);
             } catch (err) {
                 console.error('Failed to fetch categories:', err);
@@ -57,7 +57,7 @@ export default function Categories() {
             return;
         }
         try {
-            const res = await axios.post('/api/admin/categories', newCategory);
+            const res = await api.post('/api/admin/categories', newCategory);
             setCategories([...categories, res.data]);
             setNewCategory({ name: '', description: '' });
             setError('');
@@ -72,7 +72,7 @@ export default function Categories() {
             return;
         }
         try {
-            await axios.delete(`/api/admin/categories/${id}`);
+            await api.delete(`/api/admin/categories/${id}`);
             setCategories(categories.filter(cat => cat.id !== id));
             setError('');
         } catch (err) {

@@ -9,15 +9,17 @@ export default function Dashboard() {
         totalCategories: 0,
         totalUsers: 0,
         totalOrders: 0,
-        totalEarnings: 0, 
+        totalEarnings: 0,
         recentOrders: []
     });
     const [loading, setLoading] = useState(true);
 
+    const apiBaseUrl = import.meta.env.VITE_API;
+
     useEffect(() => {
         const fetchStats = async () => {
             try {
-                const res = await axios.get('/api/admin/dashboard');
+                const res = await axios.get(`${apiBaseUrl}/api/admin/dashboard`);
                 setStats(res.data);
             } catch (err) {
                 console.error('Error fetching dashboard stats:', err);
@@ -26,7 +28,7 @@ export default function Dashboard() {
             }
         };
         fetchStats();
-    }, []);
+    }, [apiBaseUrl]);
 
     if (loading) {
         return <div className="flex justify-center items-center h-64">Loading dashboard...</div>;
