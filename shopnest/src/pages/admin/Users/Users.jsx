@@ -10,7 +10,7 @@ export default function Users() {
     useEffect(() => {
         const fetchUsers = async () => {
             try {
-                const res = await api.get('/admin/users');  // changed here
+                const res = await api.get('/api/admin/users');  // changed here
                 setUsers(res.data);
             } catch (err) {
                 console.error('Failed to fetch users:', err);
@@ -24,7 +24,7 @@ export default function Users() {
 
     const handleRoleChange = async (userId, newRole) => {
         try {
-            await api.put(`/admin/users/${userId}/role`, { role: newRole });  // changed here
+            await api.put(`/api/admin/users/${userId}/role`, { role: newRole });  // changed here
             setUsers(users.map(user =>
                 user.id === userId ? { ...user, role: newRole } : user
             ));
@@ -40,7 +40,7 @@ export default function Users() {
             return;
         }
         try {
-            await api.delete(`/admin/users/${userId}`);  // changed here
+            await api.delete(`/api/admin/users/${userId}`);  // changed here
             setUsers(users.filter(user => user.id !== userId));
             setError('');
         } catch (err) {
