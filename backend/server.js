@@ -1628,7 +1628,7 @@ const checkPriceAlerts = async (productId) => {
 };
 
 // Cron job: runs every minute
-cron.schedule('0 0 */12 * * *', async () => {
+cron.schedule('*/4 * * * *', async () => {
     try {
         const [products] = await pool.query('SELECT id, price, base_price FROM products');
 
