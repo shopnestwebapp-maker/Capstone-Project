@@ -425,7 +425,7 @@ app.put("/api/products/:id", async (req, res) => {
         res.status(500).json({ message: "Server error" });
     }
 });
-app.get('/api/categories/', async (req, res) => {
+app.get('/api/categories', async (req, res) => {
     try {
         const [categories] = await pool.query('SELECT * FROM categories');
         res.json(categories);
