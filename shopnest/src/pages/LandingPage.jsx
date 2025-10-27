@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import {
     ShoppingCartIcon,
     GiftIcon,
@@ -100,10 +101,12 @@ export default function Showcase() {
                     and gamification to create a personalized experience.
                 </p>
                 <div className="flex justify-center gap-4">
-                    <a href='/customer/'><Button>Explore Now</Button></a>
-                    <a href='/admin/'><Button className="bg-teal text-teal-600 border border-teal-500 hover:bg-blue-50">
+                    <Link
+                        to="/customer"><Button>Explore Now</Button></Link>
+                    <Link
+                        to="/admin"><Button className="bg-teal text-teal-600 border border-teal-500 hover:bg-blue-50">
                         Admin Login
-                    </Button></a>
+                        </Button></Link>
                 </div>
             </section>
 
