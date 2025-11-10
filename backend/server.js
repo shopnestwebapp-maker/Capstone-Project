@@ -9,6 +9,8 @@ import cors from 'cors';
 import bodyParser from 'body-parser';
 import cron from 'node-cron';
 import nodemailer from "nodemailer";
+import Sentiment from 'sentiment';
+
 dotenv.config();
 const app = express();
 
@@ -22,7 +24,7 @@ const pool = mysql.createPool({
     connectionLimit: 10,
     queueLimit: 0
 });
-
+const sentiment = new Sentiment();
 // Middleware
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
 app.use(cors({
@@ -1667,11 +1669,11 @@ app.get('/api/products/:id/reviews', async (req, res) => {
     try {
         const [reviews] = await pool.query(
             `SELECT r.id, r.review_star, r.review_text, r.created_at, 
-                    u.username AS user_name
-             FROM product_reviews r
-             LEFT JOIN users u ON r.user_id = u.id
-             WHERE r.product_id = ?
-             ORDER BY r.created_at DESC`,
+              r.sentiment_score, u.username AS user_name
+       FROM product_reviews r
+       LEFT JOIN users u ON r.user_id = u.id
+       WHERE r.product_id = ?
+       ORDER BY r.created_at DESC`,
             [productId]
         );
 
@@ -1682,31 +1684,165 @@ app.get('/api/products/:id/reviews', async (req, res) => {
     }
 });
 
-app.post('/api/products/:id/reviews', async (req, res) => {
+// Add new review with automatic sentiment scoring
+app.post('/api/products/:id/reviews', isAuthenticated, async (req, res) => {
     const productId = req.params.id;
     const { star, text } = req.body;
-    const userId = req.user?.id; // assuming user is authenticated
-
-    if (!userId) return res.status(401).json({ message: 'Login required' });
+    const userId = req.user.id;
 
     if (!star || star < 1 || star > 5) {
         return res.status(400).json({ message: 'Star rating must be between 1 and 5' });
     }
 
     try {
+        // 1️⃣ Analyze sentiment of the review text
+        let sentimentScore = 0;
+        if (text && text.trim()) {
+            const analysis = sentiment.analyze(text);
+            sentimentScore = Math.max(-1, Math.min(1, analysis.comparative)); // normalize
+        }
+
+        // 2️⃣ Insert review and sentiment score
         await pool.query(
-            `INSERT INTO product_reviews (product_id, user_id, review_star, review_text)
-             VALUES (?, ?, ?, ?)`,
-            [productId, userId, star, text]
+            `INSERT INTO product_reviews (product_id, user_id, review_star, review_text, sentiment_score)
+       VALUES (?, ?, ?, ?, ?)`,
+            [productId, userId, star, text, sentimentScore]
         );
 
-        res.status(201).json({ message: 'Review submitted successfully' });
+        res.status(201).json({
+            message: 'Review submitted successfully',
+            sentiment: sentimentScore,
+        });
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: 'Server error' });
     }
 });
 
+// ===================== SENTIMENT-BASED RECOMMENDATIONS =====================
+
+app.get('/api/recommendations/sentiment-based/:productId', async (req, res) => {
+    const { productId } = req.params;
+
+    try {
+        // 1️⃣ Find category of the current product
+        const [prodCat] = await pool.query('SELECT category_id FROM products WHERE id = ?', [productId]);
+        if (!prodCat.length) return res.json([]);
+
+        const category = prodCat[0].category_id;
+
+        // 2️⃣ Find other products in same category with high positive sentiment
+        const [recommended] = await pool.query(`
+      SELECT p.id, p.name, p.price, p.image_url,
+             AVG(r.review_star) AS avg_rating,
+             AVG(r.sentiment_score) AS avg_sentiment
+      FROM products p
+      JOIN product_reviews r ON p.id = r.product_id
+      WHERE p.category_id = ? AND p.id != ?
+      GROUP BY p.id
+      HAVING avg_rating >= 4 AND avg_sentiment > 0.3
+      ORDER BY avg_sentiment DESC
+      LIMIT 10;
+    `, [category, productId]);
+
+        res.json(recommended);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Error fetching sentiment-based recommendations' });
+    }
+});
+
+// ================= USER ACTIVITY + HISTORY + RECOMMENDATIONS =================
+
+// Track when a logged-in user views a product
+app.post('/api/user/track-view', isAuthenticated, async (req, res) => {
+    const { product_id } = req.body;
+    if (!product_id) return res.status(400).json({ message: "Product ID required" });
+
+    try {
+        await pool.query(
+            "INSERT INTO user_activity (user_id, product_id, action) VALUES (?, ?, 'view')",
+            [req.user.id, product_id]
+        );
+        res.json({ success: true });
+    } catch (err) {
+        console.error("Error tracking view:", err);
+        res.status(500).json({ message: "Error tracking view" });
+    }
+});
+app.post('/api/user/track-cart', isAuthenticated, async (req, res) => {
+    const { product_id } = req.body;
+    if (!product_id) return res.status(400).json({ message: "Product ID required" });
+
+    try {
+        await pool.query(
+            "INSERT INTO user_activity (user_id, product_id, action) VALUES (?, ?, 'add_to_cart')",
+            [req.user.id, product_id]
+        );
+        res.json({ success: true });
+    } catch (err) {
+        console.error("Error tracking view:", err);
+        res.status(500).json({ message: "Error tracking view" });
+    }
+});
+
+// Get recently viewed products
+app.get('/api/user/history', isAuthenticated, async (req, res) => {
+    try {
+        const [rows] = await pool.query(`
+      SELECT p.id, p.name, p.price, p.image_url, c.name AS category_name, MAX(ua.created_at) AS last_viewed
+      FROM user_activity ua
+      JOIN products p ON ua.product_id = p.id
+      LEFT JOIN categories c ON p.category_id = c.id
+      WHERE ua.user_id = ? AND ua.action = 'view'
+      GROUP BY p.id
+      ORDER BY last_viewed DESC
+      LIMIT 10
+    `, [req.user.id]);
+
+        res.json(rows);
+    } catch (err) {
+        console.error("Error fetching history:", err);
+        res.status(500).json({ message: "Error fetching history" });
+    }
+});
+
+// Recommend products based on viewed categories
+app.get('/api/recommendations', isAuthenticated, async (req, res) => {
+    try {
+        // Find top 3 most-viewed categories for the user
+        const [cats] = await pool.query(`
+      SELECT p.category_id, COUNT(*) AS views
+      FROM user_activity ua
+      JOIN products p ON ua.product_id = p.id
+      WHERE ua.user_id = ? AND ua.action = 'view'
+      GROUP BY p.category_id
+      ORDER BY views DESC
+      LIMIT 3
+    `, [req.user.id]);
+
+        if (cats.length === 0) {
+            const [recent] = await pool.query("SELECT * FROM products ORDER BY created_at DESC LIMIT 10");
+            return res.json(recent);
+        }
+
+        const categoryIds = cats.map(c => c.category_id);
+        const placeholders = categoryIds.map(() => '?').join(',');
+        const [recommended] = await pool.query(`
+      SELECT p.id, p.name, p.price, p.image_url, c.name AS category_name
+      FROM products p
+      LEFT JOIN categories c ON p.category_id = c.id
+      WHERE p.category_id IN (${placeholders})
+      ORDER BY RAND()
+      LIMIT 10
+    `, categoryIds);
+
+        res.json(recommended);
+    } catch (err) {
+        console.error("Error fetching recommendations:", err);
+        res.status(500).json({ message: "Error fetching recommendations" });
+    }
+});
 
 
 // Start server

@@ -9,6 +9,7 @@ import {
     ArrowTrendingDownIcon,
     ArrowsRightLeftIcon
 } from '@heroicons/react/24/solid';
+import ProductCard from '../../../components/customer/ProductCard'; // 🧠 add this if not already imported
 
 export default function ProductPage() {
     const { id } = useParams();
@@ -23,22 +24,36 @@ export default function ProductPage() {
     const [newText, setNewText] = useState('');
     const [reviewsLoading, setReviewsLoading] = useState(true);
 
-    // Fetch product info
-    const fetchProduct = async () => {
-        setLoading(true);
-        try {
-            const res = await axios.get(`/api/products/${id}`);
-            setProduct(res.data);
-            setError('');
-        } catch (err) {
-            setError(err?.response?.data?.message || 'Product not found');
-        } finally {
-            setLoading(false);
-        }
-    };
+    // 🧠 NEW: sentiment-based recommendations state
+    const [sentimentBased, setSentimentBased] = useState([]);
 
+    // ✅ Fetch product info + track user view
     useEffect(() => {
-        fetchProduct();
+        const fetchProductAndTrackView = async () => {
+            setLoading(true);
+            try {
+                const res = await axios.get(`/api/products/${id}`);
+                setProduct(res.data);
+                setError('');
+
+                try {
+                    await axios.post(
+                        '/api/user/track-view',
+                        { product_id: id },
+                        { withCredentials: true }
+                    );
+                    console.log('View tracked successfully');
+                } catch (trackErr) {
+                    console.warn('View tracking skipped:', trackErr?.response?.data?.message || trackErr.message);
+                }
+            } catch (err) {
+                setError(err?.response?.data?.message || 'Product not found');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchProductAndTrackView();
     }, [id]);
 
     // Fetch reviews
@@ -57,9 +72,23 @@ export default function ProductPage() {
         fetchReviews();
     }, [id]);
 
+    // 🧠 NEW: fetch sentiment-based recommendations
+    useEffect(() => {
+        const fetchSentimentBased = async () => {
+            try {
+                const res = await axios.get(`/api/recommendations/sentiment-based/${id}`);
+                setSentimentBased(res.data);
+            } catch (err) {
+                console.error('Error fetching sentiment-based recommendations:', err);
+            }
+        };
+        fetchSentimentBased();
+    }, [id]);
+
     const addToCart = async () => {
         try {
             await axios.post('/api/cart/add', { productId: id, quantity }, { withCredentials: true });
+            await axios.post('/api/user/track-cart', { product_id: id }, { withCredentials: true });
             alert('Product added to cart');
             window.location.reload();
         } catch (err) {
@@ -89,8 +118,7 @@ export default function ProductPage() {
             );
             setNewText('');
             setNewStar(1);
-            fetchReviews(); // refresh reviews
-            fetchProduct(); // update average_rating and review_count
+            fetchReviews();
             alert('Review submitted!');
         } catch (err) {
             console.error('Error submitting review:', err);
@@ -105,14 +133,14 @@ export default function ProductPage() {
         return <div className="text-center py-8 text-red-600">{error}</div>;
     }
 
-    // Calculate discount percentage if applicable
+    // Calculate discount
     let discount = null;
     if (product?.base_price && product.price < product.base_price) {
         discount = Math.round(((product.base_price - product.price) / product.base_price) * 100);
     }
 
     return (
-        <div className="container mx-auto px-4 py-8">
+        <div className="container mx-auto px-4 py-8 space-y-10">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {/* Product Image */}
                 <div className="bg-white p-4 rounded-lg shadow-md">
@@ -150,56 +178,21 @@ export default function ProductPage() {
                         )}
                     </div>
 
-                    {/* Price + Comparison */}
+                    {/* Price */}
                     <div className="mb-4">
                         <div className="flex items-baseline gap-3">
                             <p className="text-2xl font-bold text-blue-600">
                                 ₹{Number(product.price) || 0}
                             </p>
-
                             {product.base_price && product.price < product.base_price && (
-                                <p className="text-lg text-gray-500 line-through">
-                                    ₹{product.base_price}
-                                </p>
+                                <p className="text-lg text-gray-500 line-through">₹{product.base_price}</p>
                             )}
-
                             {discount && (
                                 <span className="text-sm font-semibold text-green-600 bg-green-100 px-2 py-1 rounded">
                                     {discount}% OFF
                                 </span>
                             )}
                         </div>
-
-                        {product.base_price && (
-                            <div className="flex items-center gap-2 mt-1">
-                                {product.price > product.base_price && (
-                                    <>
-                                        <ArrowTrendingUpIcon className="h-5 w-5 text-red-600" />
-                                        <p className="text-sm text-red-600 font-medium">
-                                            Higher than base price (₹{product.base_price})
-                                        </p>
-                                    </>
-                                )}
-
-                                {product.price < product.base_price && (
-                                    <>
-                                        <ArrowTrendingDownIcon className="h-5 w-5 text-green-600" />
-                                        <p className="text-sm text-green-600 font-medium">
-                                            Lower than base price
-                                        </p>
-                                    </>
-                                )}
-
-                                {product.price === product.base_price && (
-                                    <>
-                                        <ArrowsRightLeftIcon className="h-5 w-5 text-gray-600" />
-                                        <p className="text-sm text-gray-600 font-medium">
-                                            Equal to base price (₹{product.base_price})
-                                        </p>
-                                    </>
-                                )}
-                            </div>
-                        )}
                     </div>
 
                     <p className="text-gray-700 mb-6">{product.description}</p>
@@ -244,7 +237,7 @@ export default function ProductPage() {
                         <h3 className="text-lg font-medium mb-2">Product Details</h3>
                         <ul className="list-disc pl-5 space-y-1 text-gray-600">
                             <li>Stock: {product.stock_quantity} available</li>
-                            <li>Free shipping on orders over $50</li>
+                            <li>Free shipping on orders over ₹50</li>
                             <li>30-day return policy</li>
                         </ul>
                     </div>
@@ -255,7 +248,6 @@ export default function ProductPage() {
             <div className="mt-10">
                 <h2 className="text-2xl font-bold mb-4">Customer Reviews</h2>
 
-                {/* Submit new review */}
                 <div className="mb-6 p-4 border rounded-md bg-gray-50">
                     <h3 className="font-medium mb-2">Add your review</h3>
                     <div className="flex items-center mb-2">
@@ -284,7 +276,6 @@ export default function ProductPage() {
                     </button>
                 </div>
 
-                {/* Display reviews */}
                 {reviewsLoading ? (
                     <p>Loading reviews...</p>
                 ) : reviews.length === 0 ? (
@@ -314,6 +305,22 @@ export default function ProductPage() {
                     </div>
                 )}
             </div>
+
+            {/* 🧠 NEW: Sentiment-based recommendations */}
+            {sentimentBased.length > 0 && (
+                <section className="mt-12">
+                    <h2 className="text-2xl sm:text-3xl font-bold mb-6 text-gray-800 flex items-center gap-2">
+                        💖 Loved by Customers Like You
+                    </h2>
+                    <div className="overflow-x-auto flex gap-4 py-2 sm:grid sm:grid-cols-2 lg:grid-cols-4 sm:gap-6">
+                        {sentimentBased.map((p) => (
+                            <div key={p.id} className="min-w-[250px] sm:min-w-0">
+                                <ProductCard product={p} />
+                            </div>
+                        ))}
+                    </div>
+                </section>
+            )}
         </div>
     );
 }

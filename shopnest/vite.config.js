@@ -9,7 +9,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://shopnest.azurewebsites.net', // Your backend server
+        target: 'http://localhost:5000', // Your backend server
         changeOrigin: true,
         secure: false,
       }
