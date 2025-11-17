@@ -1904,11 +1904,14 @@ const pool = mysql.createPool(poolConfig);
 
 // -------------------- MIDDLEWARE --------------------
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
-app.use(cors({
-    origin: CLIENT_URL,
-    credentials: true,
-    exposedHeaders: ['set-cookie']
-}));
+app.use(
+  cors({
+    origin: "*",
+    methods: "GET,POST,PUT,DELETE",
+    allowedHeaders: "Content-Type,Authorization",
+  })
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());
