@@ -32,7 +32,7 @@ const pool = mysql.createPool({
 });
 const sentiment = new Sentiment();
 // Middleware
-const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
+const CLIENT_URL = process.env.CLIENT_URL || 'https://shopnest-webapp.vercel.app';
 app.use(cors({
     origin: CLIENT_URL,
     credentials: true,
