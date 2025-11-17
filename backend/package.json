@@ -5,6 +5,7 @@
   "main": "server.js",
   "dependencies": {
     "jsonwebtoken": "^9.0.2",
+    "cookie-parser": "^1.4.6",
     "accepts": "^2.0.0",
     "aws-ssl-profiles": "^1.1.2",
     "bcrypt": "^6.0.0",
