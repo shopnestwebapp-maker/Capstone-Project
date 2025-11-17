@@ -10,6 +10,7 @@ import bodyParser from 'body-parser';
 import cron from 'node-cron';
 import nodemailer from "nodemailer";
 import Sentiment from 'sentiment';
+import fs from "fs";
 
 dotenv.config();
 const app = express();
