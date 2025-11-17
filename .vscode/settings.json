@@ -1,5 +1,0 @@
-{
-    "appService.defaultWebAppToDeploy": "/subscriptions/df95221a-5539-4558-a277-423a9d978212/resourceGroups/shopnest/providers/Microsoft.Web/sites/shopnest",
-    "appService.deploySubpath": "backend",
-    "appService.showBuildDuringDeployPrompt": false
-}
