@@ -5072,15 +5072,81 @@ app.delete('/api/price-alerts/:id', async (req, res) => {
 });
 
 
+// cron.schedule("*/5 * * * *", async () => {
+//     console.log("⏰ Checking price alerts...");
+
+//     const [products] = await pool.query("SELECT id FROM products");
+//     for (let product of products) {
+//         await checkPriceAlerts(product.id);
+//     }
+// });
 cron.schedule("*/5 * * * *", async () => {
     console.log("⏰ Checking price alerts...");
 
-    const [products] = await pool.query("SELECT id FROM products");
-    for (let product of products) {
-        await checkPriceAlerts(product.id);
+    // ---------- CONFIG ----------
+    const QUERY_TIMEOUT = 20000;  // 20s timeout
+    const RETRY_DELAY = 2000;     // retry after 2s
+    const MAX_RETRY = 3;          // retry 3 times
+    // ----------------------------
+
+    // 🔒 Safe Query Wrapper (with timeout + retries)
+    async function safeQuery(sql, params = []) {
+        let attempt = 1;
+
+        while (attempt <= MAX_RETRY) {
+            try {
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), QUERY_TIMEOUT);
+
+                const result = await pool.query(sql, params);
+
+                clearTimeout(timeout);
+                return result;
+
+            } catch (err) {
+                console.error(`❌ Query Error (Attempt ${attempt}/${MAX_RETRY}) →`, err.code || err.message);
+
+                if (attempt === MAX_RETRY) {
+                    console.error("🚨 Max retries reached — giving up.");
+                    throw err;
+                }
+
+                // wait before retry
+                await new Promise(res => setTimeout(res, RETRY_DELAY));
+                attempt++;
+            }
+        }
+    }
+
+    try {
+        // 1️⃣ KEEP-ALIVE: avoid idle connection drops
+        try {
+            await pool.query("SELECT 1");
+            console.log("🔗 MySQL Keep-alive OK");
+        } catch (err) {
+            console.error("⚠ MySQL Keep-alive failed:", err.code || err);
+        }
+
+        // 2️⃣ Read products with timeout + retry
+        const [products] = await safeQuery("SELECT id FROM products");
+
+        console.log(`📦 Found ${products.length} products`);
+
+        // 3️⃣ Process each product safely
+        for (let product of products) {
+            try {
+                await checkPriceAlerts(product.id);
+            } catch (err) {
+                console.error(`⚠ Error running checkPriceAlerts for product ${product.id}:`, err);
+            }
+        }
+
+        console.log("✅ Price alert cron finished.");
+
+    } catch (err) {
+        console.error("🚨 CRON FAILED:", err);
     }
 });
-
 const sendNotification = async (email, productName, currentPrice, targetPrice) => {
     try {
         // Create transporter
