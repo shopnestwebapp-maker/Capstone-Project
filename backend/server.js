@@ -3476,15 +3476,79 @@ import cookieParser from 'cookie-parser';
 dotenv.config();
 const app = express();
 app.use(cookieParser());
-const pool = mysql.createPool({
-    host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || 'aa',
-    database: process.env.DB_NAME || 'ShopNestaa',
+function createNewPool() {
+  return mysql.createPool({
+    host: process.env.DB_HOST || "localhost",
+    user: process.env.DB_USER || "root",
+    password: process.env.DB_PASSWORD || "aa",
+    database: process.env.DB_NAME || "ShopNestaa",
+
     waitForConnections: true,
     connectionLimit: 10,
-    queueLimit: 0
+    queueLimit: 0,
+
+    // 🔥 Increased timeouts
+    connectTimeout: 20000,   // 20 seconds
+    acquireTimeout: 20000,   // 20 seconds
+  });
+}
+
+// ------------------------------
+// GLOBAL POOL INSTANCE
+// ------------------------------
+let pool = createNewPool();
+
+// ------------------------------
+// AUTO-RECONNECT LOGIC
+// ------------------------------
+pool.on("error", (err) => {
+  console.error("💥 MySQL Pool Error:", err.code);
+
+  if (
+    err.code === "PROTOCOL_CONNECTION_LOST" ||
+    err.code === "ECONNRESET" ||
+    err.code === "ETIMEDOUT" ||
+    err.code === "ERR_SOCKET_BAD_PORT"
+  ) {
+    console.log("♻️ Recreating MySQL pool...");
+    pool = createNewPool();
+  }
 });
+
+// ------------------------------
+// SAFE QUERY WRAPPER (GLOBAL)
+// ------------------------------
+export async function safeQuery(sql, params = []) {
+  const MAX_RETRY = 3;
+
+  for (let attempt = 1; attempt <= MAX_RETRY; attempt++) {
+    try {
+      return await pool.query(sql, params);
+    } catch (err) {
+      console.error(
+        `❌ Query Failed (Attempt ${attempt}/${MAX_RETRY}) →`,
+        err.code || err.message
+      );
+
+      // Recreate pool on known connection errors
+      if (
+        err.code === "PROTOCOL_CONNECTION_LOST" ||
+        err.code === "ECONNRESET" ||
+        err.code === "ETIMEDOUT"
+      ) {
+        console.log("♻️ Reconnecting MySQL pool...");
+        pool = createNewPool();
+      }
+
+      if (attempt === MAX_RETRY) {
+        throw err; // give up after last retry
+      }
+
+      // wait 1 sec before retrying
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+  }
+}
 const sentiment = new Sentiment();
 // Middleware
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
