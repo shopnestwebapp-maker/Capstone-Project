@@ -59,7 +59,29 @@ pool.on("error", (err) => {
 // ------------------------------
 // SAFE QUERY WRAPPER (GLOBAL)
 // ------------------------------
-export async /* inline safeQuery removed - using global safeQuery */
+export async function safeQuery(sql, params = []) {
+    const MAX_RETRY = 3;
+    for (let attempt = 1; attempt <= MAX_RETRY; attempt++) {
+        try {
+            return await pool.query(sql, params);
+        } catch (err) {
+            console.error(`Query error (attempt ${attempt}/${MAX_RETRY}):`, err.code || err.message);
+
+            if (
+                err.code === "PROTOCOL_CONNECTION_LOST" ||
+                err.code === "ECONNRESET" ||
+                err.code === "ETIMEDOUT"
+            ) {
+                console.log("Recreating MySQL pool...");
+                pool = createNewPool();
+            }
+
+            if (attempt === MAX_RETRY) throw err;
+
+            await new Promise(res => setTimeout(res, 1000));
+        }
+    }
+}/* inline safeQuery removed - using global safeQuery */
 
 const sentiment = new Sentiment();
 // Middleware
